@@ -55,6 +55,23 @@ Display to the user:
 ### 7. Collect Source File Paths
 Build the list of all .sol source file paths (absolute paths) that teammates will need to read. Format as one absolute path per line when substituting into `{source_file_list}` placeholders in teammate prompts.
 
+### 8. Detect Project Characteristics
+Scan source files for DeFi-relevant patterns to determine which companion skills are relevant:
+- **Token interfaces**: Grep for `ERC20`, `ERC721`, `ERC1155`, `ERC4626`, `IERC20`, `SafeERC20` → set `{has_tokens}` true/false
+- **Proxy/upgrade patterns**: Grep for `UUPSUpgradeable`, `TransparentProxy`, `Initializable` → set `{has_proxies}` true/false
+- **Oracle imports**: Grep for `AggregatorV3Interface`, `IOracle`, `TWAP` → set `{has_oracles}` true/false
+
+### 9. Detect Companion Skills
+Search for known companion skills from the Trail of Bits marketplace (`trailofbits/skills`):
+- Glob: `~/.claude/**/token-integration-analyzer/**/SKILL.md` → relevant if `{has_tokens}`
+- Glob: `~/.claude/**/guidelines-advisor/**/SKILL.md` → always relevant
+- Glob: `~/.claude/**/entry-point-analyzer/**/SKILL.md` → always relevant
+- Glob: `~/.claude/**/variant-analysis/**/SKILL.md` → always relevant
+
+For each found, record its directory path. Store as `{companion_skills}` list (may be empty).
+
+If any found, display: "Detected companion skills: {names}. These will run as additional Stage 3 agents."
+
 ---
 
 ## Stage 0: Design Decisions (Lead Only — interactive)
@@ -70,7 +87,25 @@ Capture developer intent before the automated audit. Read `resources/REVIEW_PROM
 Display to the user:
 - Number of contracts found, functions found, domain groupings
 - Design decisions summary (categories and counts)
+- Companion skills detected (if any)
 - Ask for confirmation before proceeding to Stage 1
+
+---
+
+## Slither Integration (Lead Only — between Stage 0 and Stage 1)
+
+Run Slither static analysis if available. This is NOT a teammate — the lead does this directly.
+
+1. Run `which slither` via Bash
+2. If not found → display "Slither not detected. Install with `pip install slither-analyzer` for automated static analysis. Continuing without it." → set `{slither_file}` to empty → proceed
+3. If found → run `slither . --json /tmp/slither-output.json --exclude-informational --filter-paths "test|script|lib|node_modules" 2>/dev/null || true`
+4. Read `/tmp/slither-output.json` with the Read tool
+5. Map findings: High→CRITICAL, Medium→WARNING, Low→INFO
+6. Write formatted results to `docs/audit/function-audit/stage0/slither-findings.md`
+7. Display summary: "Slither found N findings (C critical, W warnings, I info)"
+8. Store path as `{slither_file}` for teammate prompts
+
+---
 
 ### 9. Plan Task IDs and Dependency Graph
 Before creating tasks, plan out all task IDs and their dependencies:
@@ -108,7 +143,7 @@ This creates the shared task list and team config at `~/.claude/teams/function-a
 
 ### Step 2: Create ALL tasks using TaskCreate tool
 
-Create every task upfront BEFORE spawning any teammates. Read the prompt templates from `resources/STAGE_PROMPTS.md` and fill in all placeholders, including `{design_decisions_file}` (absolute path to `stage0/design-decisions.md`). Each task's `description` field must contain the FULL analysis prompt (the filled-in template from STAGE_PROMPTS.md), not a summary.
+Create every task upfront BEFORE spawning any teammates. Read the prompt templates from `resources/STAGE_PROMPTS.md` and fill in all placeholders, including `{design_decisions_file}` (absolute path to `stage0/design-decisions.md`) and `{slither_file}` (absolute path to `stage0/slither-findings.md`, or empty string if Slither was not run). Each task's `description` field must contain the FULL analysis prompt (the filled-in template from STAGE_PROMPTS.md), not a summary.
 
 **Stage 1 tasks** (no dependencies — created first):
 
@@ -159,6 +194,18 @@ Call `TaskCreate` 3 times:
 
 Then call `TaskUpdate` to set dependencies on ALL Stage 2 task IDs:
 - `TaskUpdate(taskId: "{stage3_task_id}", addBlockedBy: ["{T4_id}", "{T5_id}", ..., "{T3+N_id}"])`
+
+**Companion skill tasks** (conditional — one per detected companion skill, same dependencies as Stage 3):
+
+If `{companion_skills}` is non-empty, for each companion skill:
+- `TaskCreate(subject: "Companion: {skill_name}", description: "<filled companion agent prompt from STAGE_PROMPTS.md>", activeForm: "Running {skill_name} analysis")`
+- `TaskUpdate(taskId: "{companion_task_id}", addBlockedBy: ["{T4_id}", "{T5_id}", ..., "{T3+N_id}"])` (same Stage 2 deps as 3a/3b/3c)
+
+Fill in the companion agent prompt template from `resources/STAGE_PROMPTS.md` with:
+- `{skill_path}` — the directory containing the companion skill's SKILL.md
+- `{skill_name}` — the companion skill name
+- `{output_file}` — `docs/audit/function-audit/stage3/companion-{skill-slug}.md`
+- `{stage1_file_list}`, `{stage2_file_list}`, `{slither_file}`, `{design_decisions_file}`, `{source_file_list}`
 
 For `{teammate_roles}` in Stage 3 prompts:
 ```
@@ -216,7 +263,12 @@ Task(subagent_type: "general-purpose", name: "math-rounding", team_name: "functi
 Task(subagent_type: "general-purpose", name: "reentrancy-trust", team_name: "function-audit", prompt: "<shared prompt above>", mode: "bypassPermissions")
 ```
 
-Spawn ALL teammates at once (all stages). Teammates blocked by dependencies will wait automatically — the task list handles stage ordering.
+**Companion skill teammates** (conditional — one per detected companion skill):
+```
+Task(subagent_type: "general-purpose", name: "companion-{skill-slug}", team_name: "function-audit", prompt: "<shared prompt above>", mode: "bypassPermissions")
+```
+
+Spawn ALL teammates at once (all stages, including companions). Teammates blocked by dependencies will wait automatically — the task list handles stage ordering.
 
 ---
 

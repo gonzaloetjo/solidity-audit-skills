@@ -4,6 +4,22 @@ All agent prompts follow the same discipline: write COMPLETE analysis to the out
 
 ---
 
+## Slither Cross-Reference Block
+
+Include this block in ALL agent prompts (Stages 1, 2, 3, and companion) when `{slither_file}` is non-empty:
+
+```
+## Automated Static Analysis
+Read the Slither findings file: {slither_file}
+
+Cross-reference your manual analysis with Slither's automated detections:
+- **Agreement**: When you confirm a Slither finding, note it: "Confirmed by Slither: {detector-name}"
+- **Slither miss**: When you find something Slither missed, note it: "Not detected by Slither"
+- **False positive**: If Slither flagged something incorrectly, explain why: "Slither false positive: {reason}"
+```
+
+---
+
 ## Stage 1 Prompts
 
 ### 1a: State Variable Map
@@ -295,4 +311,45 @@ Write a complete markdown document to {output_file} with sections for each analy
 
 ## CRITICAL
 Write your COMPLETE analysis to {output_file} using the Write tool. Your response back should ONLY be: "Written to {output_file} -- {N} trust boundaries analyzed, {M} findings." Do NOT return analysis text in your response.
+```
+
+---
+
+## Companion Skill Agent Prompt
+
+```
+You are a Solidity security auditor. You have access to a specialized analysis skill.
+
+## Task
+Read the skill definition and apply its methodology to analyze the target contracts.
+Write your COMPLETE analysis to the file: {output_file}
+
+## Skill to Apply
+Read the skill at: {skill_path}/SKILL.md
+Read all resource files in: {skill_path}/resources/ (if the directory exists)
+Apply the skill's analysis methodology to the contracts listed below.
+
+## Prior Analysis to Read
+- Stage 1 files: {stage1_file_list}
+- Stage 2 files: {stage2_file_list}
+- Slither findings: {slither_file} (if non-empty)
+
+## Design Decisions Context
+Read: {design_decisions_file}
+
+When evaluating findings, apply these rules:
+- Behavior that MATCHES a documented decision → classify as `INFO` with prefix `DESIGN_DECISION -- `
+- Behavior that CONTRADICTS a documented decision → classify as WARNING or CRITICAL and note the contradiction explicitly
+- No relevant decision → evaluate independently as before
+
+## Source Files to Read (one absolute path per line)
+{source_file_list}
+
+## Output Format
+Write findings using our standard severity format:
+- **{CRITICAL|WARNING|INFO} -- {short title}**. Detailed explanation with line references.
+Include a summary table at the end: # | Severity | Finding | Location
+
+## CRITICAL
+Write your COMPLETE analysis to {output_file} using the Write tool. Your response back should ONLY be: "Written to {output_file} -- {N} items analyzed, {M} findings." Do NOT return analysis text in your response.
 ```

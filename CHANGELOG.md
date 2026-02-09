@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.3.0] - 2026-02-09
+
+### Added
+- **Slither integration** (both variants): Runs Slither static analysis (if installed) between Stage 0 and Stage 1. Maps findings to CRITICAL/WARNING/INFO, writes to `stage0/slither-findings.md`. All agents cross-reference their manual analysis with Slither's automated detections.
+- **Companion skill agents** (both variants): Detects installed companion skills from Trail of Bits' marketplace (`token-integration-analyzer`, `guidelines-advisor`, `entry-point-analyzer`, `variant-analysis`). Spawns additional Stage 3 agents that apply each skill's methodology to the target contracts.
+- **DeFi pattern detection** in Stage 0 (both variants): New extraction categories for Oracle Strategy, Token Standard, DeFi Integration, MEV Awareness, and Value Flow.
+- **Project characteristic detection** in pre-flight (both variants): Scans source files for token interfaces, proxy/upgrade patterns, and oracle imports to determine companion skill relevance.
+- **Companion agent prompt template** in STAGE_PROMPTS.md (both variants): Standard prompt for companion skill agents with design decisions context and severity format.
+- **Slither cross-reference block** in STAGE_PROMPTS.md (both variants): Included in all agent prompts when Slither findings are available.
+
+### Changed
+- **SKILL.md** (both variants): Pre-flight now includes project characteristic detection (step 8) and companion skill detection (step 9). New Slither integration section between Stage 0 and Stage 1. Stage 3 conditionally spawns companion skill agents alongside the existing 3a/3b/3c agents.
+- **SKILL.md** (both): All stage placeholder lists now include `{slither_file}`.
+- **REVIEW_PROMPTS.md** (both): Stage 0 pattern detection table extended with 5 DeFi-related categories.
+
 ## [1.2.0] - 2026-02-09
 
 ### Added

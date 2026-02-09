@@ -29,6 +29,11 @@ Scan all source files for design intent signals. Group findings by category.
 | Reentrancy Approach | `nonReentrant` on some but not all external functions | Intentional gaps |
 | Pausability | `whenNotPaused` coverage gaps, emergency functions | Which functions skip pause |
 | Known Trade-offs | Comments with `trade-off`, `gas optimization`, `simplification` | Developer reasoning |
+| Oracle Strategy | `AggregatorV3Interface`, TWAP, custom oracle, heartbeat checks | Price source and staleness handling |
+| Token Standard | ERC-4626 vault, `SafeERC20`, fee-on-transfer handling, rebasing | Token assumptions |
+| DeFi Integration | Router calls, pool interactions, `IFlashLoanReceiver` | External protocol dependencies |
+| MEV Awareness | Slippage params (`minAmountOut`), deadline checks, commit-reveal | Frontrunning protection |
+| Value Flow | Fee collection, protocol revenue, treasury patterns | Where value accumulates and exits |
 
 ### Interactive Confirmation Script
 

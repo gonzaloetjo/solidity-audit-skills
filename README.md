@@ -51,6 +51,7 @@ Each function gets a standalone analysis block. Here's a trimmed example from a 
 | Stage | What happens | Mode | Output |
 |-------|-------------|------|--------|
 | 0. Design decisions | Extract + confirm developer intent | Interactive | `stage0/` |
+| 0.5 Slither | Static analysis (if installed) | Orchestrator | `stage0/slither-findings.md` |
 | 1. Foundation | Map state variables, access control, external calls | Agents (parallel) | `stage1/` |
 | 2. Domain audit | Per-function analysis grouped by domain | Agents (parallel) | `stage2/domain-*.md` |
 | 3. Cross-cutting | Reentrancy paths, state consistency, math/rounding | Agents (parallel) | `stage3/` |
@@ -109,6 +110,23 @@ Each function gets a standalone analysis block. Here's a trimmed example from a 
 ```
 
 All output goes to `docs/audit/function-audit/`.
+
+## Slither Integration
+
+If [Slither](https://github.com/crytic/slither) is installed (`pip install slither-analyzer`), it runs automatically before agents start. Agents cross-reference their manual analysis with Slither's automated detections — confirming findings, identifying false positives, and noting what Slither missed.
+
+## Companion Skills
+
+If you have Trail of Bits' security skills installed (`trailofbits/skills`), the pipeline detects them and spawns additional Stage 3 agents:
+
+| Skill | When it runs |
+|-------|-------------|
+| `token-integration-analyzer` | Project imports token interfaces (ERC20, ERC721, ERC4626) |
+| `guidelines-advisor` | Always |
+| `entry-point-analyzer` | Always |
+| `variant-analysis` | Always |
+
+No configuration needed — detection is automatic based on what's installed in `~/.claude/`.
 
 ## Solo vs Team
 
