@@ -1,0 +1,8 @@
+{
+  "name": "solidity-function-rationality",
+  "version": "1.0.0",
+  "description": "Multi-stage parallelized per-function rationality analysis for Solidity contracts. Discovers functions, groups by domain, runs 3 analysis stages (foundation context, per-domain analysis, cross-cutting audit) with all output written to markdown files.",
+  "skills": [
+    "skills/solidity-function-rationality"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "solidity-audit-skills",
+  "version": "1.0.0",
+  "description": "Solidity smart contract audit skills for Claude Code. Per-function rationality analysis with parallelized 3-stage approach.",
+  "author": "gonzaloetjo",
+  "plugins": [
+    "solidity-function-rationality",
+    "solidity-function-rationality-team"
+  ]
+}
