@@ -1,6 +1,128 @@
 # solidity-audit-skills
 
-Claude Code plugin marketplace for Solidity smart contract auditing.
+Function-by-function security audit of your Solidity contracts, powered by Claude Code agents.
+
+- Captures design decisions before the audit — trade-offs don't get flagged as bugs
+- Parallel agents grouped by domain — one agent per domain, all domains run concurrently
+- Interactive post-audit review — classify findings, dispute false positives, get re-evaluation
+- Structured markdown output with per-domain files, an index, and a summary
+
+## What It Catches
+
+| Severity | Function | Finding |
+|----------|----------|---------|
+| CRITICAL | `withdraw()` | Missing reentrancy guard allows drain via callback before balance update |
+| CRITICAL | `setOracle()` | No access control — any caller can replace the price oracle |
+| WARNING | `deposit()` | Underflow revert produces generic `Panic(0x11)` instead of custom error |
+| INFO | `_stakeToShares()` | Rounding direction correctly protocol-favorable (DOWN on deposit) |
+
+<details>
+<summary>Full per-function analysis format</summary>
+
+Each function gets a standalone analysis block. Here's a trimmed example from a staking vault audit:
+
+### deposit(uint256 minShares)
+
+- **Rationale**: Entry point for users to deposit native token and receive LST shares. Must correctly convert deposited stake to shares at the current exchange rate, protect against sandwich/frontrunning via slippage, and maintain share supply/pool accounting invariants.
+
+- **State mutations**:
+  - `_mint(msg.sender, shares)` -- increases `totalSupply()` and `balanceOf(msg.sender)` by `shares`
+  - `address(this).balance` is implicitly increased by `msg.value` at the start of the call
+
+- **Dependencies**:
+  - Reads: `getTotalPooledStake()`, `totalSupply()`, `INITIAL_SHARES_OFFSET`
+  - Calls: `_stakeToShares(msg.value, preDepositStake)`, `_mint(msg.sender, shares)`
+  - Modifiers: `nonReentrant`, `whenNotPaused`
+
+- **Findings**:
+
+  1. **WARNING -- Underflow revert acts as implicit insolvency guard**. The subtraction `getTotalPooledStake() - msg.value` will revert with arithmetic underflow if `getTotalPooledStake() < msg.value`. The revert reason will be a generic `Panic(0x11)` rather than a descriptive custom error.
+
+  2. **INFO -- Zero-share deposit protection**. `if (shares == 0) revert StakingVault__InvalidAmount()` prevents dust deposits that produce zero shares.
+
+  3. **INFO -- Slippage protection**. `minShares > 0 && shares < minShares` check allows callers to skip by passing 0.
+
+- **Verdict**: **SOUND**
+
+</details>
+
+## How It Works
+
+| Stage | What happens | Mode | Output |
+|-------|-------------|------|--------|
+| 0. Design decisions | Extract + confirm developer intent | Interactive | `stage0/` |
+| 1. Foundation | Map state variables, access control, external calls | Agents (parallel) | `stage1/` |
+| 2. Domain audit | Per-function analysis grouped by domain | Agents (parallel) | `stage2/domain-*.md` |
+| 3. Cross-cutting | Reentrancy paths, state consistency, math/rounding | Agents (parallel) | `stage3/` |
+| 4. Human review | Classify findings: BUG, DESIGN, DISPUTED, DISCUSS | Interactive | `review/` |
+| 5. Re-evaluation | Re-analyze disputed findings with developer context | Agent (conditional) | `review/` |
+
+```
+                    Audit Pipeline
+
+                 ┌────────────────┐
+  Stage 0        │ Design         │  ← interactive
+  (interactive)  │ Decisions      │
+                 └───────┬────────┘
+                         │
+          ┌──────────────┼──────────────┐
+          ▼              ▼              ▼
+  ┌──────────────┐┌──────────────┐┌──────────────┐
+  │ State Vars   ││ Access Ctrl  ││ External Calls│  Stage 1
+  │   agent      ││   agent      ││    agent      │  (3 parallel)
+  └──────┬───────┘└──────┬───────┘└──────┬───────┘
+          └──────────────┼──────────────┘
+                         │
+          ┌──────────────┼──────────────┐
+          ▼              ▼              ▼
+  ┌──────────────┐┌──────────────┐┌──────────────┐
+  │  Domain A    ││  Domain B    ││  Domain ...  │  Stage 2
+  │    agent     ││    agent     ││    agent     │  (N parallel)
+  └──────┬───────┘└──────┬───────┘└──────┬───────┘
+          └──────────────┼──────────────┘
+                         │
+          ┌──────────────┼──────────────┐
+          ▼              ▼              ▼
+  ┌──────────────┐┌──────────────┐┌──────────────┐
+  │ State        ││ Math &       ││ Reentrancy & │  Stage 3
+  │ Consistency  ││ Rounding     ││ Trust        │  (3 parallel)
+  └──────┬───────┘└──────┬───────┘└──────┬───────┘
+          └──────────────┼──────────────┘
+                         ▼
+                 ┌────────────────┐
+  Synthesis      │ INDEX.md   +   │
+                 │ SUMMARY.md     │
+                 └───────┬────────┘
+                         │
+                 ┌───────┴────────┐
+  Stage 4        │ Human Review   │  ← interactive
+  (interactive)  │ BUG / DESIGN / │
+                 │ DISPUTED       │
+                 └───────┬────────┘
+                         │
+                 ┌───────┴────────┐
+  Stage 5        │ Re-Evaluation  │  ← only if disputed
+  (conditional)  │ of disputes    │
+                 └───────┬────────┘
+                         ▼
+                  Final SUMMARY.md
+```
+
+All output goes to `docs/audit/function-audit/`.
+
+## Solo vs Team
+
+Both variants run the same 6-stage pipeline (Stage 0 → 1 → 2 → 3 → 4 → 5). Stages 0, 4, and 5 are interactive and identical in both. The difference is how Stages 1-3 run:
+
+The **team variant** (`/solidity-function-audit-team`) gives you control over the analysis pipeline:
+- Agents self-schedule from a shared task list with dependency tracking
+- Stage 2 agents draft analysis plans in read-only mode — you approve before they execute
+- Agents message each other about cross-domain findings (CRITICAL only)
+- Requires `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`
+
+The **solo variant** (`/solidity-function-audit`) is lighter-weight:
+- Agents run in the background and write results directly
+- No plan approval or inter-agent messaging
 
 ## Installation
 
@@ -9,21 +131,11 @@ Claude Code plugin marketplace for Solidity smart contract auditing.
 /plugin marketplace add gonzaloetjo/solidity-audit-skills
 
 # Install individual plugins
-/plugin install solidity-function-rationality@solidity-audit-skills
-/plugin install solidity-function-rationality-team@solidity-audit-skills
+/plugin install solidity-function-audit@solidity-audit-skills
+/plugin install solidity-function-audit-team@solidity-audit-skills
 ```
 
-## Skills
-
-| Skill | Trigger | Description |
-|-------|---------|-------------|
-| **solidity-function-rationality** | `/solidity-function-rationality` | 3-stage parallelized per-function rationality analysis. Spawns background agents for foundation context, per-domain analysis, and cross-cutting audits. |
-| **solidity-function-rationality-team** | `/solidity-function-rationality-team` | Agent team variant with inter-agent messaging, plan mode for Stage 2, and shared task list. Requires `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`. |
-
-## Choosing a Skill
-
-- **Quick per-function audit** — use `solidity-function-rationality`
-- **Deep audit with agent collaboration** — use `solidity-function-rationality-team`
+Requires a Foundry project layout (`src/**/*.sol`). The team variant requires `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`.
 
 ## License
 

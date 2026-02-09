@@ -1,0 +1,8 @@
+{
+  "name": "solidity-function-audit",
+  "version": "1.2.0",
+  "description": "Multi-stage parallelized per-function audit for Solidity contracts with human-in-the-loop review. Discovers functions, captures design decisions, runs 3 analysis stages, then presents findings for developer classification and re-evaluation of disputed items.",
+  "skills": [
+    "skills/solidity-function-audit"
+  ]
+}

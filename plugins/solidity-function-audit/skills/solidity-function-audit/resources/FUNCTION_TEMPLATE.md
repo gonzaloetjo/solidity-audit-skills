@@ -21,6 +21,7 @@ Use this exact format for every function analyzed. Do not omit sections. Use lin
 - **Findings**:
   1. **{CRITICAL|WARNING|INFO} -- {short title}**. Detailed explanation with line references (e.g., "Line 230: ..."). Explain the impact and any mitigations. Each finding should be self-contained.
   2. (continue numbering for additional findings)
+  - DO NOT vary the severity format. Always use exactly `**CRITICAL -- `, `**WARNING -- `, or `**INFO -- ` (bold, space-dash-dash-space) so findings can be counted reliably.
 
 - **Verdict**: **{SOUND|NEEDS_REVIEW|ISSUE_FOUND}**
 
@@ -31,6 +32,10 @@ Use this exact format for every function analyzed. Do not omit sections. Use lin
 - **CRITICAL**: Could lead to loss of funds, unauthorized access, or broken invariants. Must be addressed.
 - **WARNING**: Non-critical issue with potential impact under specific conditions. Should be reviewed.
 - **INFO**: Observation confirming correct behavior, documenting a design choice, or noting a benign edge case.
+
+## Term Definitions
+
+- **Protocol-favorable rounding**: Rounding in the direction that preserves or increases protocol assets (e.g., rounding shares down on deposit, rounding assets down on withdrawal).
 
 ## Verdict Definitions
 

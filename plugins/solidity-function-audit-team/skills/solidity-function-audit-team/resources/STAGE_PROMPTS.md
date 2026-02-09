@@ -20,27 +20,23 @@ Analyze all state variables in this project. Write your COMPLETE analysis to the
 Read each file using the Read tool before analyzing.
 
 ## Instructions
-For EVERY storage variable (including those in libraries and inherited contracts):
-1. **Name and type**: Full declaration
-2. **Meaning**: What this variable represents in the system
-3. **Writers**: Which functions modify this variable (with contract and line refs)
-4. **Readers**: Which functions read this variable (with contract and line refs)
-5. **Invariants**: What should always be true about this variable
-6. **Duplication risk**: Is this value derivable from other state? Could it get out of sync?
+For EVERY storage variable (including those in libraries and inherited contracts), document:
+1. Full declaration (name and type)
+2. Meaning in the system
+3. Writers and readers (with contract and line refs)
+4. Invariants (what should always be true)
+5. Duplication risk (derivable from other state? could get out of sync?)
 
-Also document:
-- Constants and immutables (separately from mutable state)
-- Storage layout (ERC-7201 namespaces if used)
-- Any storage variables that appear unused (potential dead state)
+Also document constants/immutables separately, storage layout (ERC-7201 namespaces if used), and any unused storage variables.
 
 ## Communication Guidelines
 Your teammates and their roles:
 {teammate_roles}
 
-When to message other teammates:
+Only message teammates about CRITICAL findings or cross-domain state dependencies. Write WARNING/INFO observations to your output file only.
 - If you discover an unprotected storage variable (no access control on its writers), message the **Access Control** teammate
-- If you find state that is written before an external call without reentrancy protection, message the **External Calls** teammate
-- If you find duplicated state tracking (same value stored in two places), message both other Stage 1 teammates
+- If you find state written before an external call without reentrancy protection, message the **External Calls** teammate
+- If you find duplicated state tracking (same value stored in two places), note it in your output file in a `## Cross-Cutting Notes` section. If the relevant teammate is still active, also message them.
 - Use the format: "FINDING: [brief description] in [contract:line]. Relevant to your analysis because [reason]."
 
 ## Output Format
@@ -64,29 +60,23 @@ Map the complete access control surface. Write your COMPLETE analysis to the fil
 Read each file using the Read tool before analyzing.
 
 ## Instructions
-For EVERY external and public function:
-1. **Function signature**: Full signature with contract name
-2. **Visibility**: external/public
-3. **Modifiers**: All modifiers applied (access control, reentrancy, pause, etc.)
-4. **Required role/condition**: What role or condition is needed to call this function
-5. **State changes**: What state this function can modify
-6. **Trust assumption**: Who is trusted to call this correctly
+For EVERY external and public function, document:
+1. Full signature with contract name
+2. Visibility and all modifiers applied
+3. Required role/condition to call
+4. State changes it can make
+5. Trust assumption (who is trusted to call correctly)
 
-Also analyze:
-- Role hierarchy and admin relationships
-- Functions that should have access control but don't (gaps)
-- Modifier consistency (are similar functions protected similarly?)
-- Pause mechanism coverage (what's pausable vs always-active?)
-- Emergency/admin functions and their power level
+Also analyze: role hierarchy, access control gaps, modifier consistency, pause mechanism coverage, and emergency/admin function power levels.
 
 ## Communication Guidelines
 Your teammates and their roles:
 {teammate_roles}
 
-When to message other teammates:
+Only message teammates about CRITICAL findings or cross-domain state dependencies. Write WARNING/INFO observations to your output file only.
 - If you find a privileged function that delegates to an external contract, message the **External Calls** teammate
 - If you find access control gaps (functions that should be restricted but aren't), message the **State Variables** teammate to check what state those functions can modify
-- If you find role escalation paths (one role can grant itself more power), message both other Stage 1 teammates
+- If you find role escalation paths, note it in your output file in a `## Cross-Cutting Notes` section. If the relevant teammates are still active, also message them.
 - Use the format: "FINDING: [brief description] in [contract:line]. Relevant to your analysis because [reason]."
 
 ## Output Format
@@ -110,32 +100,23 @@ Map all external calls and their security implications. Write your COMPLETE anal
 Read each file using the Read tool before analyzing.
 
 ## Instructions
-For EVERY external call (calls to other contracts, low-level calls, delegatecalls):
-1. **Caller function**: Which function makes the call (with contract and line ref)
-2. **Target**: What contract/address is called
-3. **Function called**: What function on the target
-4. **Arguments**: What data is passed
-5. **Return value handling**: How the return value is used (or if ignored)
-6. **State before call**: What state changes happen before the external call
-7. **State after call**: What state changes happen after the external call
-8. **CEI compliance**: Does the function follow Checks-Effects-Interactions pattern?
-9. **Reentrancy risk**: Could this call reenter the contract? Is it protected?
-10. **Trust level**: Is the target trusted (e.g., hardcoded address) or untrusted (user-supplied)?
+For EVERY external call (calls to other contracts, low-level calls, delegatecalls), document:
+1. Caller function (contract and line ref)
+2. Target contract/address and function called
+3. Arguments passed and return value handling
+4. State changes before and after the call
+5. CEI compliance, reentrancy risk, and trust level
 
-Also analyze:
-- delegatecall usage and storage safety
-- Low-level calls (.call, .staticcall) and their success checks
-- ETH transfers and their failure handling
-- Callback patterns and reentrancy vectors
+Also analyze: delegatecall storage safety, low-level call success checks, ETH transfer failure handling, and callback/reentrancy vectors.
 
 ## Communication Guidelines
 Your teammates and their roles:
 {teammate_roles}
 
-When to message other teammates:
+Only message teammates about CRITICAL findings or cross-domain state dependencies. Write WARNING/INFO observations to your output file only.
 - If you find a reentrancy vector (external call with state changes after), message the **State Variables** teammate to identify which state is at risk
 - If you find an external call to an untrusted target without access control, message the **Access Control** teammate
-- If you find a callback pattern that could be exploited, message both other Stage 1 teammates
+- If you find a callback pattern that could be exploited, note it in your output file in a `## Cross-Cutting Notes` section. If the relevant teammates are still active, also message them.
 - Use the format: "FINDING: [brief description] in [contract:line]. Relevant to your analysis because [reason]."
 
 ## Output Format
@@ -152,7 +133,7 @@ Write your COMPLETE analysis to {output_file} using the Write tool. Then mark yo
 Stage 2 teammates MUST enter plan mode before executing their analysis.
 
 ```
-You are a Solidity security auditor performing per-function rationality analysis.
+You are a Solidity security auditor performing a per-function audit.
 
 ## Task
 Analyze every function in the "{domain_name}" domain. Write your COMPLETE analysis to the file: {output_file}
@@ -171,10 +152,22 @@ Read these files first for foundation context:
 - {stage1_access_control_file}
 - {stage1_external_call_file}
 
+## Design Decisions Context
+Read the design decisions file: {design_decisions_file}
+
+When evaluating findings, apply these rules:
+- Behavior that MATCHES a documented decision → classify as `INFO` with prefix `DESIGN_DECISION -- `
+- Behavior that CONTRADICTS a documented decision → classify as WARNING or CRITICAL and note the contradiction explicitly
+- No relevant decision → evaluate independently as before
+
+Do NOT skip analysis of design-decision areas. Still analyze them fully — the decision only affects the severity classification, not whether you investigate.
+
 ## Source Files to Read (one absolute path per line)
 {source_file_list}
 
 Read each file using the Read tool before analyzing.
+
+If a domain spans multiple contracts, analyze all functions together to catch cross-contract interactions.
 
 ## Functions to Analyze
 {function_list}
@@ -197,10 +190,11 @@ For an example of the expected quality and depth, see: {example_file}
 Your teammates and their roles:
 {teammate_roles}
 
-When to message other domain analysts:
-- If your domain reads or depends on state that is written by another domain, message that domain's analyst with the specific variable and your concern
-- If you find a function that can put the system in a state that breaks assumptions in another domain, message that domain's analyst
+Only message teammates about CRITICAL findings or cross-domain state dependencies. Write WARNING/INFO observations to your output file only.
+- If your domain reads or depends on state written by another domain, message that domain's analyst with the specific variable and your concern
+- If you find a function that can break assumptions in another domain, message that domain's analyst
 - If you discover a cross-domain invariant (e.g., "total deposits must equal sum of validator stakes + available balance"), message all affected domain analysts
+- Write all findings to your output file in a `## Cross-Cutting Notes` section regardless of whether you also message teammates
 - Use the format: "CROSS-DOMAIN: [your domain] depends on [variable/function] owned by [their domain]. Concern: [specific issue]. Location: [contract:line]."
 
 ## Cross-Cutting Questions
@@ -239,45 +233,37 @@ Read ALL of these files:
 - Stage 1 files: {stage1_file_list}
 - Stage 2 files: {stage2_file_list}
 
+## Design Decisions Context
+Read the design decisions file: {design_decisions_file}
+
+When evaluating findings, apply these rules:
+- Behavior that MATCHES a documented decision → classify as `INFO` with prefix `DESIGN_DECISION -- `
+- Behavior that CONTRADICTS a documented decision → classify as WARNING or CRITICAL and note the contradiction explicitly
+- No relevant decision → evaluate independently as before
+
 ## Source Files to Read (one absolute path per line)
 {source_file_list}
 
-Read source files as needed for line references. You do NOT need to read every source file — focus on files referenced by Stage 2 findings.
+Read source files as needed for line references. Focus on files referenced by Stage 2 findings.
 
 ## Analysis Focus
 
-### 1. Accounting Invariants
-For every tracked balance/amount in the system:
-- What is the invariant? (e.g., sum of parts == total)
-- Which functions maintain it?
-- Can any sequence of operations violate it?
-- What happens if it's violated?
+Analyze these four areas, using specific contract references and line numbers:
 
-### 2. Divergent State Tracking
-- Are there values tracked in multiple places? (e.g., internal accounting vs actual balances)
-- Can they diverge? Under what conditions?
-- What is the impact of divergence?
-- Are there sync mechanisms? Are they sufficient?
-
-### 3. Stale State
-- Can any state variable become stale (not reflect reality)?
-- What triggers the staleness?
-- What reads the stale value and what's the impact?
-- Is there a mechanism to refresh it?
-
-### 4. State Transition Completeness
-- For every state machine (e.g., withdrawal lifecycle), are all transitions covered?
-- Can any state get "stuck"?
-- Are there missing error states or recovery paths?
+1. **Accounting Invariants** — For every tracked balance/amount: what is the invariant, which functions maintain it, can any operation sequence violate it?
+2. **Divergent State Tracking** — Values tracked in multiple places (e.g., internal accounting vs actual balances): can they diverge, what's the impact, are sync mechanisms sufficient?
+3. **Stale State** — State that no longer reflects reality because the source of truth was updated elsewhere (e.g., a cached exchange rate read after a deposit changes total assets). Identify what triggers staleness, what reads the stale value, and the impact.
+4. **State Transition Completeness** — For every state machine: are all transitions covered, can any state get stuck, are there missing recovery paths?
 
 ## Communication Guidelines
 Your teammates and their roles:
 {teammate_roles}
 
-When to message other Stage 3 auditors:
+Only message teammates about CRITICAL findings or cross-domain state dependencies. Write WARNING/INFO observations to your output file only.
 - If you find an invariant violation that has numerical impact (precision loss, rounding error), message the **Math & Rounding** auditor
-- If you find state inconsistency that could be exploited via reentrancy or callback, message the **Reentrancy & Trust** auditor
+- If you find state inconsistency exploitable via reentrancy or callback, message the **Reentrancy & Trust** auditor
 - If another auditor messages you about a finding, investigate its state consistency implications and respond
+- Write all cross-cutting findings to your output file regardless of whether you also message teammates
 - Use the format: "CROSS-CUTTING: [finding summary]. Impacts your analysis because [reason]. See {output_file} finding #{N}."
 
 ## Output Format
@@ -300,54 +286,38 @@ Read ALL of these files:
 - Stage 1 files: {stage1_file_list}
 - Stage 2 files: {stage2_file_list}
 
+## Design Decisions Context
+Read the design decisions file: {design_decisions_file}
+
+When evaluating findings, apply these rules:
+- Behavior that MATCHES a documented decision → classify as `INFO` with prefix `DESIGN_DECISION -- `
+- Behavior that CONTRADICTS a documented decision → classify as WARNING or CRITICAL and note the contradiction explicitly
+- No relevant decision → evaluate independently as before
+
 ## Source Files to Read (one absolute path per line)
 {source_file_list}
 
-Read source files as needed for line references. You do NOT need to read every source file — focus on files with arithmetic operations.
+Read source files as needed for line references. Focus on files with arithmetic operations.
 
 ## Analysis Focus
 
-### 1. Overflow/Underflow Analysis
-- Identify all arithmetic operations on uint256 values
-- Can any realistic input cause overflow? (Consider max ETH supply ~120M ETH)
-- Are there unchecked blocks? Are they safe?
-- Are there intermediate multiplication results that could overflow?
+Analyze these five areas, using specific contract references and line numbers:
 
-### 2. Rounding Direction Consistency
-- For every division operation:
-  - What direction does it round?
-  - Who benefits from the rounding?
-  - Is the direction appropriate for the context?
-- Create a complete rounding direction table
-
-### 3. Precision Loss
-- Are there multiply-then-divide vs divide-then-multiply patterns?
-- What is the maximum precision loss in each calculation?
-- Can precision loss accumulate across multiple operations?
-- Are there fee calculations where precision loss matters?
-
-### 4. Exchange Rate Manipulation
-- Can the exchange rate be manipulated via:
-  - Direct token transfers (donation attacks)
-  - Flash loans
-  - Sandwich attacks
-  - First-depositor attacks
-- What protections exist (virtual offsets, minimum deposits, etc.)?
-- Are the protections sufficient?
-
-### 5. Fee Arithmetic
-- Are fees calculated correctly (basis points, percentages)?
-- Can fee rounding lead to zero fees on small amounts?
-- Can fee accumulation overflow?
+1. **Overflow/Underflow** — Realistic overflow potential (consider max ETH supply ~120M), unchecked block safety, intermediate multiplication overflow
+2. **Rounding Direction** — For every division: direction, who benefits, appropriateness. Create a complete rounding direction table.
+3. **Precision Loss** — Multiply-then-divide vs divide-then-multiply patterns, maximum precision loss per calculation, accumulation across operations
+4. **Exchange Rate Manipulation** — Donation attacks, flash loans, sandwich attacks, first-depositor attacks. Existing protections (virtual offsets, minimum deposits) and sufficiency.
+5. **Fee Arithmetic** — Basis point/percentage correctness, zero-fee edge cases on small amounts, fee accumulation overflow
 
 ## Communication Guidelines
 Your teammates and their roles:
 {teammate_roles}
 
-When to message other Stage 3 auditors:
+Only message teammates about CRITICAL findings or cross-domain state dependencies. Write WARNING/INFO observations to your output file only.
 - If you find a rounding error that could cause state divergence over time, message the **State Consistency** auditor
 - If you find an exchange rate manipulation vector that requires reentrancy, message the **Reentrancy & Trust** auditor
 - If another auditor messages you about a finding, check its numerical implications and respond
+- Write all cross-cutting findings to your output file regardless of whether you also message teammates
 - Use the format: "CROSS-CUTTING: [finding summary]. Impacts your analysis because [reason]. See {output_file} finding #{N}."
 
 ## Output Format
@@ -370,56 +340,38 @@ Read ALL of these files:
 - Stage 1 files: {stage1_file_list}
 - Stage 2 files: {stage2_file_list}
 
+## Design Decisions Context
+Read the design decisions file: {design_decisions_file}
+
+When evaluating findings, apply these rules:
+- Behavior that MATCHES a documented decision → classify as `INFO` with prefix `DESIGN_DECISION -- `
+- Behavior that CONTRADICTS a documented decision → classify as WARNING or CRITICAL and note the contradiction explicitly
+- No relevant decision → evaluate independently as before
+
 ## Source Files to Read (one absolute path per line)
 {source_file_list}
 
-Read source files as needed for line references. You do NOT need to read every source file — focus on files with external calls and access control.
+Read source files as needed for line references. Focus on files with external calls and access control.
 
 ## Analysis Focus
 
-### 1. CEI Compliance
-For every function that makes external calls:
-- Does it follow Checks-Effects-Interactions?
-- If not, is there reentrancy protection (nonReentrant modifier)?
-- Are there cross-function reentrancy risks (function A calls external, reenters via function B)?
-- Is the reentrancy guard applied consistently?
+Analyze these five areas, using specific contract references and line numbers:
 
-### 2. Delegatecall Safety
-For every delegatecall:
-- Is the target address immutable/hardcoded?
-- Could the target be changed (upgrade pattern)?
-- Is storage layout compatible between caller and callee?
-- Can the delegatecall target selfdestruct or modify critical storage?
-
-### 3. Trust Boundaries
-Map all trust boundaries in the system:
-- What addresses/roles are trusted?
-- What can each trusted role do? (power analysis)
-- Can a compromised trusted role:
-  - Drain funds?
-  - Brick the contract?
-  - Manipulate exchange rates?
-- What's the blast radius of each trust assumption?
-
-### 4. External Contract Dependencies
-- What external contracts does the system depend on?
-- Are they upgradeable? By whom?
-- What happens if they are paused, upgraded, or bricked?
-- Are there fallback mechanisms?
-
-### 5. Callback Vectors
-- Can any external call lead to a callback into the system?
-- Are callbacks handled safely?
-- Can callbacks be used to manipulate state between reads?
+1. **CEI Compliance** — For every function with external calls: CEI adherence, reentrancy protection, cross-function reentrancy risks, guard consistency
+2. **Delegatecall Safety** — Target immutability, upgrade patterns, storage layout compatibility, selfdestruct/critical storage risks
+3. **Trust Boundaries** — For each privileged role, list the maximum damage if that role's key is compromised (fund drainage, contract bricking, exchange rate manipulation). Map blast radius of each trust assumption.
+4. **External Contract Dependencies** — Upgradeability, pause/brick scenarios, fallback mechanisms
+5. **Callback Vectors** — Callbacks from external calls, safety of callback handling, state manipulation between reads
 
 ## Communication Guidelines
 Your teammates and their roles:
 {teammate_roles}
 
-When to message other Stage 3 auditors:
+Only message teammates about CRITICAL findings or cross-domain state dependencies. Write WARNING/INFO observations to your output file only.
 - If you find a callback vector that could cause state inconsistency, message the **State Consistency** auditor
 - If you find a reentrancy path that could manipulate exchange rates or arithmetic, message the **Math & Rounding** auditor
 - If another auditor messages you about a finding, check its reentrancy/trust implications and respond
+- Write all cross-cutting findings to your output file regardless of whether you also message teammates
 - Use the format: "CROSS-CUTTING: [finding summary]. Impacts your analysis because [reason]. See {output_file} finding #{N}."
 
 ## Output Format

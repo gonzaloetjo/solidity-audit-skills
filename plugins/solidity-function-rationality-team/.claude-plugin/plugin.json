@@ -1,8 +1,0 @@
-{
-  "name": "solidity-function-rationality-team",
-  "version": "1.0.0",
-  "description": "Agent team variant of solidity-function-rationality. Uses Claude Code agent teams for inter-agent messaging, plan mode for Stage 2, and shared task list with dependencies. Requires CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1.",
-  "skills": [
-    "skills/solidity-function-rationality-team"
-  ]
-}

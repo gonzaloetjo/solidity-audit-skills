@@ -4,7 +4,7 @@ This is a trimmed example from an actual analysis of the Deposit & Exchange Rate
 
 ---
 
-# Stage 2: Deposit & Exchange Rate Domain -- Per-Function Rationality Analysis
+# Stage 2: Deposit & Exchange Rate Domain -- Per-Function Audit
 
 **Audit Date**: 2026-02-06
 **Domain**: Deposit flow, exchange rate calculation, stake/share conversions, pool accounting

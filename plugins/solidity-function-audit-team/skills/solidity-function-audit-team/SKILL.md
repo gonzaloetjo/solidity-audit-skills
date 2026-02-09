@@ -1,14 +1,14 @@
 ---
-name: solidity-function-rationality-team
-description: Agent team variant of solidity-function-rationality. Uses Claude Code agent teams for inter-agent messaging, plan mode for Stage 2, and shared task list with dependencies. Requires CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1.
+name: solidity-function-audit-team
+description: Agent team variant of solidity-function-audit with human-in-the-loop review. Uses agent teams for inter-agent messaging, plan mode for Stage 2, shared task list with dependencies, plus interactive design decision capture (Stage 0), findings review (Stage 4), and dispute re-evaluation (Stage 5). Requires CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1.
 disable-model-invocation: true
 ---
 
-# Function Rationality Analysis (Agent Team)
+# Function Audit (Agent Team)
 
 ## Purpose
 
-Perform a comprehensive per-function rationality analysis using an agent team. Teammates communicate findings to each other in real-time, use plan mode for complex domain analysis, and coordinate via a shared task list with dependencies. The lead stays lean by delegating all analysis work and only performing pre-flight discovery and synthesis.
+Perform a comprehensive per-function audit using an agent team with human-in-the-loop review. Stage 0 captures design decisions interactively. Stages 1-3 use agent teams with inter-agent messaging, plan mode, and shared task list. Stage 4 presents findings for developer classification. Stage 5 re-evaluates disputed findings. The lead handles pre-flight, Stage 0, synthesis, Stage 4, and Stage 5 directly — only Stages 1-3 are delegated to teammates.
 
 ## Prerequisites
 
@@ -38,24 +38,41 @@ Group functions into logical domains using these heuristics (in priority order):
 3. **Lifecycle stages**: Functions that form a sequence (request -> process -> claim) belong together
 4. **Name prefixes**: Functions with common prefixes (deposit/withdraw, add/remove, register/deregister)
 
-Aim for 4-10 domains. Each domain should have 3-15 functions. Merge tiny domains, split huge ones.
+Target 4-10 domains of 3-15 functions each. If the contract has fewer than 15 functions total, use a single domain. If natural grouping exceeds 10 domains, merge the smallest related domains.
 
 ### 5. Create Output Directory
 ```
-mkdir -p docs/audit/function-rationality/{stage1,stage2,stage3}
+mkdir -p docs/audit/function-audit/{stage0,stage1,stage2,stage3,review}
 ```
 
-### 6. Confirm with User
+### 6. Preview Domains
 Display to the user:
 - Number of contracts found
 - Number of functions found
 - Domain groupings with function lists
-- Ask for confirmation before proceeding
+- Proceed to Stage 0 for design decision capture before confirming
 
 ### 7. Collect Source File Paths
 Build the list of all .sol source file paths (absolute paths) that teammates will need to read. Format as one absolute path per line when substituting into `{source_file_list}` placeholders in teammate prompts.
 
-### 8. Plan Task IDs and Dependency Graph
+---
+
+## Stage 0: Design Decisions (Lead Only — interactive)
+
+Capture developer intent before the automated audit. Read `resources/REVIEW_PROMPTS.md` (Stage 0 section) for extraction patterns, confirmation script, and output format. Execute the three phases:
+
+1. **Automated extraction**: Grep source files for NatSpec `@dev` comments, static analysis annotations, intent keywords, and code-level patterns (rounding, access control, upgrades, reentrancy, pausability)
+2. **Interactive confirmation**: Present detections grouped by category, ask user to confirm/correct/add context per category
+3. **Write output**: Write `docs/audit/function-audit/stage0/design-decisions.md`. Store path as `{design_decisions_file}` for agent prompts.
+
+### 8. Confirm with User
+
+Display to the user:
+- Number of contracts found, functions found, domain groupings
+- Design decisions summary (categories and counts)
+- Ask for confirmation before proceeding to Stage 1
+
+### 9. Plan Task IDs and Dependency Graph
 Before creating tasks, plan out all task IDs and their dependencies:
 
 ```
@@ -84,14 +101,14 @@ Stage 3 (blocked by all Stage 2 tasks):
 
 Call the `TeamCreate` tool:
 ```
-TeamCreate(team_name: "function-rationality", description: "Function rationality analysis for {PROJECT_PATH}")
+TeamCreate(team_name: "function-audit", description: "Function audit for {PROJECT_PATH}")
 ```
 
-This creates the shared task list and team config at `~/.claude/teams/function-rationality/`.
+This creates the shared task list and team config at `~/.claude/teams/function-audit/`.
 
 ### Step 2: Create ALL tasks using TaskCreate tool
 
-Create every task upfront BEFORE spawning any teammates. Read the prompt templates from `resources/STAGE_PROMPTS.md` and fill in all placeholders. Each task's `description` field must contain the FULL analysis prompt (the filled-in template from STAGE_PROMPTS.md), not a summary.
+Create every task upfront BEFORE spawning any teammates. Read the prompt templates from `resources/STAGE_PROMPTS.md` and fill in all placeholders, including `{design_decisions_file}` (absolute path to `stage0/design-decisions.md`). Each task's `description` field must contain the FULL analysis prompt (the filled-in template from STAGE_PROMPTS.md), not a summary.
 
 **Stage 1 tasks** (no dependencies — created first):
 
@@ -156,7 +173,7 @@ After ALL tasks are created, spawn teammates using the `Task` tool with `team_na
 
 The shared prompt for ALL teammates (passed as `prompt` to each `Task` call):
 ```
-You are a Solidity security auditor on an agent team performing function rationality analysis.
+You are a Solidity security auditor on an agent team performing function audit.
 
 ## How You Work
 1. Check the task list (TaskList) for available tasks (status: pending, no owner, no unresolved blockedBy)
@@ -171,12 +188,6 @@ You are a Solidity security auditor on an agent team performing function rationa
 - Follow the Communication Guidelines in each task description
 - When you receive a message, incorporate the finding into your analysis if relevant
 
-## Plan Mode (Stage 2 Only)
-- Stage 2 domain analysis tasks require plan mode
-- Call EnterPlanMode, design your analysis approach, then call ExitPlanMode to send for approval
-- Only proceed after the lead approves your plan
-- Stages 1 and 3 execute directly without plan approval
-
 ## Important Rules
 - Write ALL analysis to the output file specified in the task using the Write tool. Do NOT return analysis in messages.
 - Always use absolute paths when reading files.
@@ -187,22 +198,22 @@ Spawn teammates with these exact `Task` tool calls:
 
 **Stage 1 teammates** (3):
 ```
-Task(subagent_type: "general-purpose", name: "state-vars", team_name: "function-rationality", prompt: "<shared prompt above>", mode: "bypassPermissions")
-Task(subagent_type: "general-purpose", name: "access-ctrl", team_name: "function-rationality", prompt: "<shared prompt above>", mode: "bypassPermissions")
-Task(subagent_type: "general-purpose", name: "ext-calls", team_name: "function-rationality", prompt: "<shared prompt above>", mode: "bypassPermissions")
+Task(subagent_type: "general-purpose", name: "state-vars", team_name: "function-audit", prompt: "<shared prompt above>", mode: "bypassPermissions")
+Task(subagent_type: "general-purpose", name: "access-ctrl", team_name: "function-audit", prompt: "<shared prompt above>", mode: "bypassPermissions")
+Task(subagent_type: "general-purpose", name: "ext-calls", team_name: "function-audit", prompt: "<shared prompt above>", mode: "bypassPermissions")
 ```
 
 **Stage 2 teammates** (one per domain):
 ```
-Task(subagent_type: "general-purpose", name: "domain-{slug}", team_name: "function-rationality", prompt: "<shared prompt above>", mode: "plan")
+Task(subagent_type: "general-purpose", name: "domain-{slug}", team_name: "function-audit", prompt: "<shared prompt above>", mode: "plan")
 ```
 Note: `mode: "plan"` requires plan approval from the lead before they can implement.
 
 **Stage 3 teammates** (3):
 ```
-Task(subagent_type: "general-purpose", name: "state-consistency", team_name: "function-rationality", prompt: "<shared prompt above>", mode: "bypassPermissions")
-Task(subagent_type: "general-purpose", name: "math-rounding", team_name: "function-rationality", prompt: "<shared prompt above>", mode: "bypassPermissions")
-Task(subagent_type: "general-purpose", name: "reentrancy-trust", team_name: "function-rationality", prompt: "<shared prompt above>", mode: "bypassPermissions")
+Task(subagent_type: "general-purpose", name: "state-consistency", team_name: "function-audit", prompt: "<shared prompt above>", mode: "bypassPermissions")
+Task(subagent_type: "general-purpose", name: "math-rounding", team_name: "function-audit", prompt: "<shared prompt above>", mode: "bypassPermissions")
+Task(subagent_type: "general-purpose", name: "reentrancy-trust", team_name: "function-audit", prompt: "<shared prompt above>", mode: "bypassPermissions")
 ```
 
 Spawn ALL teammates at once (all stages). Teammates blocked by dependencies will wait automatically — the task list handles stage ordering.
@@ -236,7 +247,7 @@ After spawning all teammates:
 After all tasks are completed, the lead performs synthesis directly (not as a teammate task — the lead's context is clean from delegate mode).
 
 ### 1. Read All Output Files
-Read each file in `docs/audit/function-rationality/` (stage1, stage2, stage3) **one at a time**, tallying findings as you go. Do NOT try to hold all files in context simultaneously — read one, count its findings, then move to the next.
+Read each file in `docs/audit/function-audit/` (stage1, stage2, stage3) **one at a time**, tallying findings as you go. Do NOT try to hold all files in context simultaneously — read one, count its findings, then move to the next.
 
 ### 2. Count Findings
 Parse each file for findings by severity. Use these exact patterns to avoid over-counting:
@@ -252,46 +263,10 @@ Count per-function verdicts using these exact patterns:
 Do NOT count domain-level overall verdicts (e.g., "Overall Domain Verdict: **SOUND**") in the per-function tally — track those separately.
 
 ### 3. Write INDEX.md
-Write `docs/audit/function-rationality/INDEX.md` containing:
-- Table of contents linking to every output file
-- Per-file finding counts (Critical / Warning / Info)
-- Per-file verdict
-
-Format:
-```markdown
-# Function Rationality Analysis -- Index
-
-**Generated**: {date}
-**Project**: {project_path}
-**Method**: Agent Team (inter-agent communication enabled)
-
-## Stage 1: Foundation Context
-| File | Description | Findings |
-|------|-------------|----------|
-| [state-variable-map.md](stage1/state-variable-map.md) | State variable analysis | {C} critical, {W} warnings, {I} info |
-| ... | ... | ... |
-
-## Stage 2: Per-Domain Analysis
-| File | Domain | Functions | Verdict | Findings |
-|------|--------|-----------|---------|----------|
-| [domain-{slug}.md](stage2/domain-{slug}.md) | {name} | {N} | {verdict} | {C}C / {W}W / {I}I |
-| ... | ... | ... | ... | ... |
-
-## Stage 3: Cross-Cutting Audit
-| File | Focus | Findings |
-|------|-------|----------|
-| [state-consistency.md](stage3/state-consistency.md) | Accounting invariants, divergent tracking | {C}C / {W}W / {I}I |
-| ... | ... | ... |
-
-## Totals
-- **CRITICAL**: {total}
-- **WARNING**: {total}
-- **INFO**: {total}
-- Functions: **SOUND** {N} | **NEEDS_REVIEW** {N} | **ISSUE_FOUND** {N}
-```
+Write `docs/audit/function-audit/INDEX.md` with sections for Stage 0 (design decisions), Stage 1 (foundation), Stage 2 (per-domain with verdicts), Stage 3 (cross-cutting), and Totals. Include `**Method**: Agent Team (inter-agent communication enabled)` in the header. Link every output file with finding counts.
 
 ### 4. Write SUMMARY.md
-Write `docs/audit/function-rationality/SUMMARY.md` containing:
+Write `docs/audit/function-audit/SUMMARY.md` containing:
 - Executive summary (2-3 paragraphs)
 - Top CRITICAL findings (if any) with file links
 - Top WARNING findings with file links
@@ -300,30 +275,52 @@ Write `docs/audit/function-rationality/SUMMARY.md` containing:
 - Recommended action items (prioritized)
 
 ### 5. Report to User
-Display final stats:
+Display finding stats and ask if the user wants to proceed to human review:
 - Total files generated
 - Finding breakdown by severity
 - Verdict breakdown
 - Any CRITICAL findings highlighted
-- Links to INDEX.md and SUMMARY.md
+- "Proceed to findings review? [yes/no]"
+
+If the user declines, output links to INDEX.md and SUMMARY.md and stop.
 
 ---
 
-## Rationalizations (Do Not Skip)
+## Stage 4: Human Review (Lead Only — interactive)
 
-| Rationalization | Why It's Wrong | Required Action |
-|-----------------|----------------|-----------------|
-| "Return analysis in agent response for efficiency" | Returns fill main context window, causing overflow and losing later stages | ALL teammates must write to files and return only confirmations |
-| "Pre-load source files in main context for agents" | Source files consume thousands of lines of context | Teammates read source files themselves via Read tool |
-| "Skip Stage 1, agents can figure out context" | Without foundation maps, Stage 2 agents miss cross-function dependencies | Complete all 3 stages sequentially via task dependencies |
-| "Run all stages in parallel" | Stage 2 needs Stage 1 output, Stage 3 needs Stage 2 output | Use blockedBy dependencies to enforce stage ordering |
-| "Merge small domains to reduce agent count" | Fewer, larger agents hit context limits and produce shallower analysis | Keep domains focused (3-15 functions each) |
-| "Skip cross-cutting analysis if no CRITICALs found" | Cross-cutting issues emerge from combining individually-sound functions | Always complete Stage 3 |
-| "Summarize from task confirmations instead of reading files" | Confirmations contain no analysis data | Read actual output files for synthesis |
-| "Skip user confirmation of domains" | Incorrect domain grouping wastes all subsequent analysis | Confirm domains before launching agents |
-| "Skip inter-agent messaging, Stage 3 catches everything" | Stage 2 agents miss cross-domain issues that only emerge when domains communicate in real-time | Include communication guidelines in every task |
-| "Spawn only 3 teammates for all stages" | Stage 2 parallelism is bottlenecked; domains wait in queue | Spawn enough teammates for all concurrent tasks |
-| "Let lead do synthesis as a task" | Lead context is lean from delegate mode — synthesis benefits from this clean context | Lead runs synthesis directly, not as a teammate task |
+Read the review flow from `resources/REVIEW_PROMPTS.md` (Stage 4 section). Execute interactively:
+
+1. **Extract findings**: Parse all stage2/ and stage3/ files for `**CRITICAL -- `, `**WARNING -- `, `**INFO -- ` patterns. Note `DESIGN_DECISION -- ` tagged findings separately.
+2. **Present CRITICALs** (if any): Numbered list, ask user to classify each: `BUG`, `DESIGN`, `DISPUTED`, or `DISCUSS`.
+3. **Present WARNINGs**: Same format.
+4. **Present INFOs**: Summary count, opt-in to review.
+5. **Follow-up on DISPUTED/DISCUSS**: Show full finding + source code, record developer reasoning.
+6. **Write output**: `docs/audit/function-audit/review/review-responses.md`
+
+---
+
+## Stage 5: Re-Evaluation (Lead Only — conditional, 1 agent)
+
+**Skip this stage** if no DISPUTED or DISCUSS items exist from Stage 4.
+
+If items exist: read the Stage 5 agent prompt from `resources/REVIEW_PROMPTS.md`, fill in placeholders (`{output_file}`, `{design_decisions_file}`, `{review_responses_file}`, `{source_file_list}`, `{disputed_findings}`), and launch ONE Task agent with `run_in_background: true`, `subagent_type: "general-purpose"`, `mode: "bypassPermissions"`. Wait with `TaskOutput(block: true, timeout: 600000)`.
+
+### Final Synthesis Update
+
+Update `SUMMARY.md` with a "Human Review" section (classification table + before/after status). Update `INDEX.md` with review file links. Display final summary to the user.
+
+---
+
+## Guardrails
+
+- **All teammates write to files** — never return analysis in responses. Returns fill the main context window and cause overflow in later stages.
+- **Use blockedBy dependencies** — Stage 2 needs Stage 1 output, Stage 3 needs Stage 2 output. Only teammates *within* each stage run in parallel.
+- **Always complete Stage 3** — cross-cutting issues emerge from combining individually-sound functions, even when no CRITICALs are found in Stage 2.
+- **Include communication guidelines** — Stage 2 agents miss cross-domain issues that only emerge when domains communicate in real-time. Every task must have communication guidelines.
+- **Lead runs synthesis directly** — lead's context is lean from delegate mode; synthesis benefits from this clean context.
+- **Stage 0 is best-effort** — if no design signals are detected, write an empty design-decisions.md and proceed. Agents evaluate independently.
+- **Stage 4 requires patience** — present findings in severity batches. Let the user classify at their own pace. Never auto-classify.
+- **Stage 5 is conditional** — only runs if DISPUTED or DISCUSS items exist. Do not spawn the agent otherwise.
 
 ---
 
@@ -333,5 +330,5 @@ Display final stats:
 - **Teammate count**: Spawn at least N teammates where N = max(3, number of domains). Stage 1 uses 3, Stage 2 uses N, Stage 3 uses 3. Teammates self-schedule via the task list.
 - **Plan mode**: Only Stage 2 tasks require plan approval. Stage 1 and 3 tasks are structured enough to execute directly.
 - **File paths**: Always use absolute paths in task descriptions so teammates can Read files without ambiguity.
-- **Error handling**: If a teammate fails or a task gets stuck, the lead should investigate via TaskList and reassign if needed.
+- **Error handling**: If a teammate fails or a task gets stuck, the lead should investigate via TaskList and reassign if needed. In synthesis, note missing files in INDEX.md with status `INCOMPLETE — agent failed` and proceed using available outputs.
 - **Idempotency**: Running again overwrites previous output files. Consider renaming the old directory first if you want to preserve it.
