@@ -45,7 +45,7 @@ SKILL.md has YAML frontmatter followed by the full execution prompt.
 
 ### Plugin and Marketplace Manifests
 
-**marketplace.json** (repo root `.claude-plugin/`): `name`, `version`, `description`, `author`, `plugins` (array of plugin directory names).
+**marketplace.json** (repo root `.claude-plugin/`): `name`, `version`, `description`, `owner` (object with required `name` string), `plugins` (array of objects with `name` + `source`).
 
 **plugin.json** (per-plugin `.claude-plugin/`): `name` (must match directory), `version`, `description`, `skills` (array of relative paths to skill directories).
 
