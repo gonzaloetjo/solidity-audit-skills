@@ -1,7 +1,7 @@
 {
   "name": "solidity-function-audit-team",
-  "version": "1.4.0",
-  "description": "Agent team variant of solidity-function-audit with human-in-the-loop review. Uses agent teams for inter-agent messaging, plan mode for Stage 2, shared task list with dependencies, plus interactive design decision capture, findings review, and dispute re-evaluation. Requires CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1.",
+  "version": "1.4.1",
+  "description": "Agent team variant of solidity-function-audit with human-in-the-loop review. Uses agent teams for inter-agent messaging, shared task list with dependencies, plus interactive design decision capture, findings review, and dispute re-evaluation. Requires CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1.",
   "skills": [
     "skills/solidity-function-audit-team"
   ]

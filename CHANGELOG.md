@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.4.1] - 2026-02-11
+
+### Fixed
+- **Plan mode deadlock** (team): Replaced `mode: "plan"` with `mode: "bypassPermissions"` for Stage 2 teammates. Plan mode caused a circular dependency where the lead waits for task completion while teammates wait for plan approval, but messages only deliver between turns ([#24108](https://github.com/anthropics/claude-code/issues/24108)). Stage 2 teammates now use prompt-based planning: design plan → send as message to lead → proceed without waiting for approval.
+
 ## [1.4.0] - 2026-02-11
 
 ### Added

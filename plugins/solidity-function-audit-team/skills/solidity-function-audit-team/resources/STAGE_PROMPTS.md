@@ -146,7 +146,7 @@ Write your COMPLETE analysis to {output_file} using the Write tool. Then mark yo
 
 ## Stage 2 Prompt (Per-Domain)
 
-Stage 2 teammates MUST enter plan mode before executing their analysis.
+Stage 2 teammates design their analysis plan and share it with the lead before executing.
 
 ```
 You are a Solidity security auditor performing a per-function audit.
@@ -155,12 +155,13 @@ You are a Solidity security auditor performing a per-function audit.
 Analyze every function in the "{domain_name}" domain. Write your COMPLETE analysis to the file: {output_file}
 
 ## IMPORTANT: Plan Before Executing
-Before writing any analysis, you MUST enter plan mode:
+Before writing any analysis, design your analysis plan:
 1. Read all source files and Stage 1 output listed below
 2. Design your analysis approach: function order, focus areas, cross-domain dependencies
 3. Ensure your plan covers ALL functions listed below — no omissions
 4. Identify which other domains interact with yours (cross-domain state dependencies)
-5. Send your plan for approval. Only proceed after approval.
+5. Send your plan as a message to the lead: SendMessage(type: "message", recipient: "<lead-name>", content: "<your plan>", summary: "Analysis plan for {domain_name}")
+6. Proceed immediately with your analysis — do not wait for approval
 
 ## Prior Analysis to Read (Stage 1 Context)
 Read these files first for foundation context:

@@ -1,6 +1,6 @@
 ---
 name: solidity-function-audit-team
-description: Agent team variant of solidity-function-audit with human-in-the-loop review. Uses agent teams for inter-agent messaging, plan mode for Stage 2, shared task list with dependencies, plus interactive design decision capture (Stage 0), findings review (Stage 4), and dispute re-evaluation (Stage 5). Requires CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1.
+description: Agent team variant of solidity-function-audit with human-in-the-loop review. Uses agent teams for inter-agent messaging, shared task list with dependencies, plus interactive design decision capture (Stage 0), findings review (Stage 4), and dispute re-evaluation (Stage 5). Requires CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1.
 disable-model-invocation: true
 ---
 
@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 ## Purpose
 
-Perform a comprehensive per-function audit using an agent team with human-in-the-loop review. Stage 0 captures design decisions interactively. Stages 1-3 use agent teams with inter-agent messaging, plan mode, and shared task list. Stage 4 presents findings for developer classification. Stage 5 re-evaluates disputed findings. The lead handles pre-flight, Stage 0, synthesis, Stage 4, and Stage 5 directly — only Stages 1-3 are delegated to teammates.
+Perform a comprehensive per-function audit using an agent team with human-in-the-loop review. Stage 0 captures design decisions interactively. Stages 1-3 use agent teams with inter-agent messaging and shared task list. Stage 4 presents findings for developer classification. Stage 5 re-evaluates disputed findings. The lead handles pre-flight, Stage 0, synthesis, Stage 4, and Stage 5 directly — only Stages 1-3 are delegated to teammates.
 
 ## Prerequisites
 
@@ -243,9 +243,9 @@ Task(subagent_type: "general-purpose", name: "ext-calls", team_name: "function-a
 
 **Stage 2 teammates** (one per domain):
 ```
-Task(subagent_type: "general-purpose", name: "domain-{slug}", team_name: "function-audit", prompt: "<shared prompt above>", mode: "plan", max_turns: 25)
+Task(subagent_type: "general-purpose", name: "domain-{slug}", team_name: "function-audit", prompt: "<shared prompt above>", mode: "bypassPermissions", max_turns: 25)
 ```
-Note: `mode: "plan"` requires plan approval from the lead before they can implement.
+Note: Stage 2 teammates send their analysis plan as a message to the lead before executing (see STAGE_PROMPTS.md). This is informational — teammates proceed without waiting for approval.
 
 **Stage 3 teammates** (3):
 ```
@@ -265,10 +265,7 @@ After spawning all teammates:
 1. The lead MUST NOT do any analysis work itself — only coordinate
 2. Teammates self-claim tasks from the shared list as they become unblocked
 3. Monitor progress via `TaskList` tool
-4. **Stage 2 plan approval**: When Stage 2 teammates call ExitPlanMode, you receive a plan approval request. Use `SendMessage(type: "plan_approval_response", ...)` to approve or reject. Only approve plans that:
-   - Cover ALL listed functions (no omissions)
-   - Identify cross-domain state dependencies
-   - Have reasonable focus areas
+4. **Stage 2 plan messages**: Stage 2 teammates send their analysis plan as a message before executing. Review these for awareness — if a plan has obvious gaps (missing functions, wrong focus areas), message the teammate with corrections. Teammates do not wait for approval, so respond promptly if you see issues.
 5. When ALL tasks show status "completed" in TaskList, quick-validate all output files before proceeding:
    - Use Glob to verify files exist in `stage1/*.md`, `stage2/*.md`, and `stage3/*.md`
    - Read the first 5 and last 5 lines of each file. Verify each is non-empty and contains `## ` headings
@@ -372,7 +369,7 @@ Update `SUMMARY.md` with a "Human Review" section (classification table + before
 
 - **Agent teams**: Requires `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in environment.
 - **Teammate count**: Spawn at least N teammates where N = max(3, number of domains). Stage 1 uses 3, Stage 2 uses N, Stage 3 uses 3. Teammates self-schedule via the task list.
-- **Plan mode**: Only Stage 2 tasks require plan approval. Stage 1 and 3 tasks are structured enough to execute directly.
+- **Stage 2 planning**: Stage 2 teammates design and share their analysis plan via messaging before executing. This is prompt-enforced (not permission-enforced) to avoid deadlocks with the plan approval protocol.
 - **File paths**: Always use absolute paths in task descriptions so teammates can Read files without ambiguity.
 - **Error handling**: If a teammate fails or a task gets stuck, the lead should investigate via TaskList and reassign if needed. In synthesis, note missing files in INDEX.md with status `INCOMPLETE — agent failed` and proceed using available outputs.
 - **Idempotency**: Running again overwrites previous output files. Consider renaming the old directory first if you want to preserve it.
