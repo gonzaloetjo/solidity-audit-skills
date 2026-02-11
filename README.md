@@ -59,54 +59,51 @@ Each function gets a standalone analysis block. Here's a trimmed example from a 
 | 5. Re-evaluation | Re-analyze disputed findings with developer context | Agent (conditional) | `review/` |
 
 ```
-                    Audit Pipeline
-
-                 ┌────────────────┐
-  Stage 0        │ Design         │  ← interactive
-  (interactive)  │ Decisions      │
-                 └───────┬────────┘
-                         │
-          ┌──────────────┼──────────────┐
-          ▼              ▼              ▼
-  ┌──────────────┐┌──────────────┐┌──────────────┐
-  │ State Vars   ││ Access Ctrl  ││ External Calls│  Stage 1
-  │   agent      ││   agent      ││    agent      │  (3 parallel)
-  └──────┬───────┘└──────┬───────┘└──────┬───────┘
-          └──────────────┼──────────────┘
-                         │
-          ┌──────────────┼──────────────┐
-          ▼              ▼              ▼
-  ┌──────────────┐┌──────────────┐┌──────────────┐
-  │  Domain A    ││  Domain B    ││  Domain ...  │  Stage 2
-  │    agent     ││    agent     ││    agent     │  (N parallel)
-  └──────┬───────┘└──────┬───────┘└──────┬───────┘
-          └──────────────┼──────────────┘
-                         │
-          ┌──────────────┼──────────────┐
-          ▼              ▼              ▼
-  ┌──────────────┐┌──────────────┐┌──────────────┐
-  │ State        ││ Math &       ││ Reentrancy & │  Stage 3
-  │ Consistency  ││ Rounding     ││ Trust        │  (3 parallel)
-  └──────┬───────┘└──────┬───────┘└──────┬───────┘
-          └──────────────┼──────────────┘
-                         ▼
-                 ┌────────────────┐
-  Synthesis      │ INDEX.md   +   │
-                 │ SUMMARY.md     │
-                 └───────┬────────┘
-                         │
-                 ┌───────┴────────┐
-  Stage 4        │ Human Review   │  ← interactive
-  (interactive)  │ BUG / DESIGN / │
-                 │ DISPUTED       │
-                 └───────┬────────┘
-                         │
-                 ┌───────┴────────┐
-  Stage 5        │ Re-Evaluation  │  ← only if disputed
-  (conditional)  │ of disputes    │
-                 └───────┬────────┘
-                         ▼
-                  Final SUMMARY.md
+  Stage 0          ┌──────────────────┐
+  interactive      │  Design Decisions │
+                   └────────┬─────────┘
+                            │
+  Slither          ┌────────┴─────────┐
+  if installed     │  Static Analysis  │
+                   └────────┬─────────┘
+                            │
+                ┌───────────┼───────────┐
+                ▼           ▼           ▼
+  Stage 1    ┌──────┐  ┌──────┐  ┌──────────┐
+  3 agents   │State │  │Access│  │ External │
+             │ Vars │  │ Ctrl │  │  Calls   │
+             └──┬───┘  └──┬───┘  └────┬─────┘
+                └──────────┼──────────┘
+                           │
+               ┌───────────┼───────────┐
+               ▼           ▼           ▼
+  Stage 2   ┌──────┐  ┌──────┐  ┌──────────┐
+  N agents  │Dom A │  │Dom B │  │ Dom ...  │
+            └──┬───┘  └──┬───┘  └────┬─────┘
+               └──────────┼──────────┘
+                          │
+              ┌───────────┼───────────┐
+              ▼           ▼           ▼
+  Stage 3  ┌───────┐ ┌────────┐ ┌──────────┐
+  3 agents │ State │ │ Math & │ │Reentrancy│
+           │Consist│ │Rounding│ │ & Trust  │
+           └──┬────┘ └───┬────┘ └────┬─────┘
+              └───────────┼──────────┘
+                          │
+  Synthesis    ┌──────────┴──────────┐
+               │ INDEX.md + SUMMARY  │
+               └──────────┬──────────┘
+                          │
+  Stage 4      ┌──────────┴──────────┐
+  interactive  │    Human Review     │
+               │ BUG/DESIGN/DISPUTED │
+               └──────────┬──────────┘
+                          │
+  Stage 5      ┌──────────┴──────────┐
+  conditional  │   Re-Evaluation     │
+               └──────────┬──────────┘
+                          ▼
+               Final SUMMARY.md
 ```
 
 All output goes to `docs/audit/function-audit/`.
