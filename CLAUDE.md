@@ -67,6 +67,16 @@ Both use semver (MAJOR.MINOR.PATCH). Optional fields available in the spec: `aut
 
 **Guardrails** — Each SKILL.md ends with a list of anti-patterns and required corrective actions, serving as embedded guardrails the orchestrator must follow.
 
+**Agent turn limits** — All agent spawns include `max_turns` to prevent stuck agents from burning context until timeout. Stage 1/5: 15 turns, Stage 2/3: 25 turns.
+
+**Output validation hooks** — Plugin hooks validate agent output files on completion. Solo uses `SubagentStop`, team uses `TaskCompleted`. Checks: non-empty, has `## ` headings, Stage 2 has required sections, Stage 2/3 have severity tags. Exit code 2 blocks completion and feeds the error back to the agent.
+
+**Compaction guidance** — Each SKILL.md includes a "Context Compaction Guidance" section listing critical values the compactor must preserve (paths, domain groupings, placeholders, stage status).
+
+**Post-completion verification** — After each stage's file existence check, the orchestrator reads the first/last 5 lines of each output file to verify structure. Malformed files are noted as INCOMPLETE in synthesis.
+
+**Domain-scoped source files** — Stage 2 agents receive only domain-relevant files (contracts containing domain functions, externally called contracts from Stage 1c, inherited contracts/libraries) instead of all project source files.
+
 **Domain grouping heuristic** — Pre-flight discovery groups contract functions into 4-10 domains of 3-15 functions each, confirmed with the user before launching agents.
 
 **Severity definitions**: CRITICAL (loss of funds, unauthorized access, broken invariants), WARNING (conditional impact), INFO (observations, design choices). **Verdicts**: SOUND, NEEDS_REVIEW, ISSUE_FOUND. **Review statuses**: BUG, DESIGN, DISPUTED, DISCUSS. **Re-evaluation outcomes**: UPHELD, WITHDRAWN, DOWNGRADED, NEEDS_TESTING.
@@ -87,13 +97,15 @@ Both use semver (MAJOR.MINOR.PATCH). Optional fields available in the spec: `aut
 - All agent prompts use absolute paths to output files
 - All agents use `subagent_type: "general-purpose"`
 - Timeouts: Stage 1 = 5 min (300000ms), Stage 2 & 3 = 10 min (600000ms)
+- Turn limits: Stage 1/5 = 15 `max_turns`, Stage 2/3 = 25 `max_turns`
+- `{design_decisions_file}` is only substituted into Stage 2 and Stage 3 prompts (Stage 1 does not use it)
 - Re-running a skill overwrites output; rename old `function-audit/` directory to preserve previous runs
 
 ---
 
 ## DYNAMIC — Current State and Evolution
 
-<!-- Last reviewed: 2026-02-10 -->
+<!-- Last reviewed: 2026-02-11 -->
 
 ### Current Inventory
 
@@ -104,7 +116,7 @@ Both use semver (MAJOR.MINOR.PATCH). Optional fields available in the spec: `aut
 
 Both variants run the same 6-stage pipeline (Stage 0 → Slither → 1 → 2 → 3 → 4 → 5). Stages 0, 4, 5 are orchestrator-interactive and identical across variants. Slither integration is identical. Only Stages 1-3 differ (solo uses background agents, team uses agent teams).
 
-FUNCTION_TEMPLATE.md, EXAMPLE_OUTPUT.md, and REVIEW_PROMPTS.md are byte-identical across both plugins. STAGE_PROMPTS.md differs only by Communication Guidelines sections in the team variant.
+FUNCTION_TEMPLATE.md, EXAMPLE_OUTPUT.md, and REVIEW_PROMPTS.md are byte-identical across both plugins. STAGE_PROMPTS.md differs only by Communication Guidelines sections in the team variant. Both hooks directories contain `hooks.json` + `validate-output.sh` (different hook events but same validation logic).
 
 ### Claude Code Features In Use
 
