@@ -77,7 +77,7 @@ Read the design decisions file: {design_decisions_file}
 
 When evaluating findings, apply these rules:
 - Behavior that MATCHES a documented decision → classify as `INFO` with prefix `DESIGN_DECISION -- `
-- Behavior that CONTRADICTS a documented decision → classify as WARNING or CRITICAL and note the contradiction explicitly
+- Behavior that CONTRADICTS a documented decision → classify as MEDIUM or higher and note the contradiction explicitly
 - No relevant decision → evaluate independently as before
 
 Do NOT skip analysis of design-decision areas. Still analyze them fully — the decision only affects the severity classification, not whether you investigate.
@@ -91,7 +91,9 @@ Do NOT skip analysis of design-decision areas. Still analyze them fully — the 
 
 Parse all findings from stage2/ and stage3/ files using these patterns:
 - `**CRITICAL -- ` → extract finding title and file path
-- `**WARNING -- ` → extract finding title and file path
+- `**HIGH -- ` → extract finding title and file path
+- `**MEDIUM -- ` → extract finding title and file path
+- `**LOW -- ` → extract finding title and file path
 - `**INFO -- ` → extract finding title and file path
 
 Also extract `DESIGN_DECISION -- ` tagged findings separately.
@@ -108,15 +110,18 @@ Available statuses:
 - **DISPUTED**: Developer disagrees with finding
 - **DISCUSS**: Needs more context before classifying
 
-**Step 2 — WARNINGs** (if any):
+**Step 2 — HIGHs** (if any):
 Same format as CRITICALs.
 
-**Step 3 — INFOs**:
-Show summary count (total, design-decision tagged, other).
-Ask: "Review INFOs? [skip/review]"
+**Step 3 — MEDIUMs** (if any):
+Same format as CRITICALs.
+
+**Step 4 — LOWs and INFOs**:
+Show summary count (total LOWs, total INFOs, design-decision tagged, other).
+Ask: "Review LOWs and INFOs? [skip/review]"
 If review: present in batches of 10, same classification format.
 
-**Step 4 — Follow-up for DISPUTED/DISCUSS**:
+**Step 5 — Follow-up for DISPUTED/DISCUSS**:
 For each DISPUTED or DISCUSS item:
 1. Show the full finding text + relevant source code
 2. Ask: "What is your reasoning for disputing/discussing this?"
@@ -135,7 +140,9 @@ For each DISPUTED or DISCUSS item:
 | Original Severity | BUG | DESIGN | DISPUTED | DISCUSS |
 |-------------------|-----|--------|----------|---------|
 | CRITICAL | {n} | {n} | {n} | {n} |
-| WARNING | {n} | {n} | {n} | {n} |
+| HIGH | {n} | {n} | {n} | {n} |
+| MEDIUM | {n} | {n} | {n} | {n} |
+| LOW | {n} | {n} | {n} | {n} |
 | INFO | {n} | {n} | {n} | {n} |
 
 ## Detailed Classifications
@@ -143,7 +150,7 @@ For each DISPUTED or DISCUSS item:
 | # | Severity | Finding | Source | Classification | Reasoning |
 |---|----------|---------|--------|----------------|-----------|
 | 1 | CRITICAL | {title} | {file}:{function} | BUG | — |
-| 2 | WARNING | {title} | {file}:{function} | DISPUTED | {developer reasoning} |
+| 2 | HIGH | {title} | {file}:{function} | DISPUTED | {developer reasoning} |
 
 ## Disputed/Discussed Items (Full Context)
 
@@ -200,7 +207,7 @@ Write a complete markdown document to {output_file} with:
 | # | Finding | Original | Developer Says | Outcome | New Severity |
 |---|---------|----------|----------------|---------|-------------|
 | 1 | {title} | CRITICAL | {brief argument} | UPHELD | CRITICAL |
-| 2 | {title} | WARNING | {brief argument} | DOWNGRADED | INFO |
+| 2 | {title} | HIGH | {brief argument} | DOWNGRADED | LOW |
 
 ### Per-Finding Re-Evaluation
 

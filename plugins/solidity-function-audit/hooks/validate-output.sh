@@ -51,14 +51,14 @@ case "$OUTPUT_FILE" in
       exit 2
     fi
     # Validation 4: Stage 2 must have at least one severity tag
-    if ! grep -qE '\*\*(CRITICAL|WARNING|INFO) -- ' "$OUTPUT_FILE" 2>/dev/null; then
+    if ! grep -qE '\*\*(CRITICAL|HIGH|MEDIUM|LOW|INFO) -- ' "$OUTPUT_FILE" 2>/dev/null; then
       echo "Output validation failed: Stage 2 file ${OUTPUT_FILE} has no severity tags." >&2
       exit 2
     fi
     ;;
   */stage3/*)
     # Validation 4: Stage 3 must have at least one severity tag
-    if ! grep -qE '\*\*(CRITICAL|WARNING|INFO) -- ' "$OUTPUT_FILE" 2>/dev/null; then
+    if ! grep -qE '\*\*(CRITICAL|HIGH|MEDIUM|LOW|INFO) -- ' "$OUTPUT_FILE" 2>/dev/null; then
       echo "Output validation failed: Stage 3 file ${OUTPUT_FILE} has no severity tags." >&2
       exit 2
     fi

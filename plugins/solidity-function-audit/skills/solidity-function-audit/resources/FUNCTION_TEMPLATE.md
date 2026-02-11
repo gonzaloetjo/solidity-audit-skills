@@ -19,9 +19,9 @@ Use this exact format for every function analyzed. Do not omit sections. Use lin
   - Modifiers: list all modifiers applied to this function
 
 - **Findings**:
-  1. **{CRITICAL|WARNING|INFO} -- {short title}**. Detailed explanation with line references (e.g., "Line 230: ..."). Explain the impact and any mitigations. Each finding should be self-contained.
+  1. **{CRITICAL|HIGH|MEDIUM|LOW|INFO} -- {short title}**. Detailed explanation with line references (e.g., "Line 230: ..."). Explain the impact and any mitigations. Each finding should be self-contained.
   2. (continue numbering for additional findings)
-  - DO NOT vary the severity format. Always use exactly `**CRITICAL -- `, `**WARNING -- `, or `**INFO -- ` (bold, space-dash-dash-space) so findings can be counted reliably.
+  - DO NOT vary the severity format. Always use exactly `**CRITICAL -- `, `**HIGH -- `, `**MEDIUM -- `, `**LOW -- `, or `**INFO -- ` (bold, space-dash-dash-space) so findings can be counted reliably.
 
 - **Verdict**: **{SOUND|NEEDS_REVIEW|ISSUE_FOUND}**
 
@@ -29,9 +29,11 @@ Use this exact format for every function analyzed. Do not omit sections. Use lin
 
 ## Severity Definitions
 
-- **CRITICAL**: Could lead to loss of funds, unauthorized access, or broken invariants. Must be addressed.
-- **WARNING**: Non-critical issue with potential impact under specific conditions. Should be reviewed.
-- **INFO**: Observation confirming correct behavior, documenting a design choice, or noting a benign edge case.
+- **CRITICAL**: Direct loss of funds, unauthorized access to all funds, broken core invariants. Exploitable now.
+- **HIGH**: Conditional loss of funds, significant access control bypass. Requires specific conditions but impact is severe.
+- **MEDIUM**: Protocol behavior deviation, incorrect state under edge conditions. Limited direct financial impact.
+- **LOW**: Best practices, gas optimizations with security implications, minor issues unlikely to cause harm.
+- **INFO**: Observations, design choices, informational notes confirming correct behavior.
 
 ## Term Definitions
 
@@ -39,6 +41,6 @@ Use this exact format for every function analyzed. Do not omit sections. Use lin
 
 ## Verdict Definitions
 
-- **SOUND**: Function is correctly implemented. No issues found beyond informational notes.
-- **NEEDS_REVIEW**: Function works but has warnings that should be evaluated by the team.
-- **ISSUE_FOUND**: Function has one or more CRITICAL findings that need to be addressed.
+- **SOUND**: Function is correctly implemented. Only INFO findings or no findings.
+- **NEEDS_REVIEW**: Function has MEDIUM or LOW findings (no CRITICAL or HIGH).
+- **ISSUE_FOUND**: Function has one or more CRITICAL or HIGH findings.

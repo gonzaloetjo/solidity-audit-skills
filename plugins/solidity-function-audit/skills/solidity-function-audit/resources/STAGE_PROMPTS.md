@@ -133,7 +133,7 @@ Read the design decisions file: {design_decisions_file}
 
 When evaluating findings, apply these rules:
 - Behavior that MATCHES a documented decision → classify as `INFO` with prefix `DESIGN_DECISION -- `
-- Behavior that CONTRADICTS a documented decision → classify as WARNING or CRITICAL and note the contradiction explicitly
+- Behavior that CONTRADICTS a documented decision → classify as MEDIUM or higher and note the contradiction explicitly
 - No relevant decision → evaluate independently as before
 
 Do NOT skip analysis of design-decision areas. Still analyze them fully — the decision only affects the severity classification, not whether you investigate.
@@ -158,7 +158,7 @@ When analyzing each function, also consider the following and capture them as nu
 - **Edge cases**: Zero values, overflow, empty arrays, first/last element
 - **Arithmetic**: Rounding direction, precision loss, overflow potential
 
-These should appear as INFO/WARNING/CRITICAL findings in the Findings section, NOT as separate sections.
+These should appear as INFO/LOW/MEDIUM/HIGH/CRITICAL findings in the Findings section, NOT as separate sections.
 
 ## Quality Reference
 For an example of the expected quality and depth, see: {example_file}
@@ -178,7 +178,7 @@ If the source files import ERC20/ERC721/ERC4626/IERC20/SafeERC20, check each fun
 - Pausable/blocklist tokens: can a paused/blocked token brick the protocol?
 - Permit/approval race conditions: is the approval pattern safe?
 - Tokens with hooks (ERC777): reentrancy via token transfer callbacks?
-Note relevant findings as WARNING or INFO in the Findings section.
+Note relevant findings as LOW/MEDIUM/HIGH or INFO in the Findings section.
 
 ## Output Format
 Write a complete markdown document to {output_file} with:
@@ -214,7 +214,7 @@ Read the design decisions file: {design_decisions_file}
 
 When evaluating findings, apply these rules:
 - Behavior that MATCHES a documented decision → classify as `INFO` with prefix `DESIGN_DECISION -- `
-- Behavior that CONTRADICTS a documented decision → classify as WARNING or CRITICAL and note the contradiction explicitly
+- Behavior that CONTRADICTS a documented decision → classify as MEDIUM or higher and note the contradiction explicitly
 - No relevant decision → evaluate independently as before
 
 ## Source Files to Read (one absolute path per line)
@@ -256,7 +256,7 @@ Read the design decisions file: {design_decisions_file}
 
 When evaluating findings, apply these rules:
 - Behavior that MATCHES a documented decision → classify as `INFO` with prefix `DESIGN_DECISION -- `
-- Behavior that CONTRADICTS a documented decision → classify as WARNING or CRITICAL and note the contradiction explicitly
+- Behavior that CONTRADICTS a documented decision → classify as MEDIUM or higher and note the contradiction explicitly
 - No relevant decision → evaluate independently as before
 
 ## Source Files to Read (one absolute path per line)
@@ -299,7 +299,7 @@ Read the design decisions file: {design_decisions_file}
 
 When evaluating findings, apply these rules:
 - Behavior that MATCHES a documented decision → classify as `INFO` with prefix `DESIGN_DECISION -- `
-- Behavior that CONTRADICTS a documented decision → classify as WARNING or CRITICAL and note the contradiction explicitly
+- Behavior that CONTRADICTS a documented decision → classify as MEDIUM or higher and note the contradiction explicitly
 - No relevant decision → evaluate independently as before
 
 ## Source Files to Read (one absolute path per line)

@@ -14,15 +14,23 @@ Perform a comprehensive per-function audit of all Solidity contracts in a projec
 
 ## Pre-Flight Discovery
 
+### 0. Check for Previous Run
+Check if `docs/audit/function-audit/` exists. If it does, ask the user:
+- **Archive**: Rename to `docs/audit/function-audit-{YYYY-MM-DD-HHMMSS}/` (using current timestamp) and proceed fresh
+- **Overwrite**: Delete contents and proceed
+- **Cancel**: Stop execution
+
+If the directory does not exist, proceed normally.
+
 ### 1. Identify Project Path
 - Use `$ARGUMENTS` as the project path if provided, otherwise use the current working directory.
 - Store as `PROJECT_PATH` for all subsequent steps.
 
-### 2. Discover Contracts
-Use Glob for `src/**/*.sol` (excluding `src/artifacts/`) to find all source files. Then use Grep for `contract \w+` and `library \w+` to identify contract and library declarations. Read each file to confirm.
+### 2. Discover Contracts (lean — Grep only)
+Use Glob for `src/**/*.sol` (excluding `src/artifacts/`) to find all source files. Then use Grep for `contract \w+` and `library \w+` to identify contract and library declarations. Do NOT Read entire source files — only Read a specific file when domain grouping is ambiguous (e.g., a function straddles two contracts). The goal is to know file paths + contract names, not to understand the code.
 
-### 3. Discover Functions
-Use Grep for `function \w+\(` in each discovered .sol file to find all function declarations. Read the surrounding lines to determine visibility:
+### 3. Discover Functions (lean — Grep only)
+Use Grep for `function \w+\(` in each discovered .sol file to find all function declarations. Use Grep context flags (`-A 1` or `-B 1`) to determine visibility from the surrounding lines — do NOT Read full files:
 - Collect all `external` and `public` functions
 - Also collect `internal` functions (they are often where the real logic lives)
 - Skip auto-generated getters and pure view helpers that just return a constant
@@ -66,7 +74,7 @@ If auto-compaction occurs during this session, preserve these critical values:
 - Domain groupings with function lists
 - All output file absolute paths (stage0/, stage1/, stage2/, stage3/, review/)
 - All placeholder values: `{design_decisions_file}`, `{slither_file}`, `{template_file}`, `{example_file}`
-- Finding tallies per stage (CRITICAL/WARNING/INFO counts)
+- Finding tallies per stage (CRITICAL/HIGH/MEDIUM/LOW/INFO counts)
 - Current stage number and completion status of each stage
 
 ---
@@ -114,8 +122,8 @@ Run Slither static analysis if available. This is NOT an agent — the orchestra
 3. If found → run `slither . --json /tmp/slither-output.json --exclude-informational --filter-paths "test|script|lib|node_modules" 2>&1 || true`
 4. Check if `/tmp/slither-output.json` exists and is non-empty (use Bash: `test -s /tmp/slither-output.json`)
 5. If the file doesn't exist or is empty → display "Slither failed to analyze the project (likely a compilation or solc version issue). Continuing without it." → set `{slither_file}` to empty → proceed to Stage 1
-6. If the file exists → Read it, map findings (High→CRITICAL, Medium→WARNING, Low→INFO), write to `docs/audit/function-audit/stage0/slither-findings.md`
-7. Display summary: "Slither found N findings (C critical, W warnings, I info)"
+6. If the file exists → Read it, map findings (High→HIGH, Medium→MEDIUM, Low→LOW, Informational→INFO), write to `docs/audit/function-audit/stage0/slither-findings.md`
+7. Display summary: "Slither found N findings (H high, M medium, L low, I info)"
 8. Store path as `{slither_file}` for agent prompts
 
 ---
@@ -166,7 +174,7 @@ After launching all domain agents:
 1. Use `TaskOutput(block: true, timeout: 600000)` on each agent (up to 10 minutes each — Stage 2 is the heaviest)
 2. Each agent should return ONLY a short confirmation
 3. Use Glob to verify all domain files exist: `docs/audit/function-audit/stage2/*.md`
-4. Quick-validate each output file: Read the first 5 and last 5 lines. Verify the file is non-empty, contains at least one `## ` heading, contains `## Summary of Findings` or `## Cross-Cutting Analysis`, and has at least one severity tag (`**CRITICAL -- ` or `**WARNING -- ` or `**INFO -- `). If validation fails, note the file as INCOMPLETE in synthesis.
+4. Quick-validate each output file: Read the first 5 and last 5 lines. Verify the file is non-empty, contains at least one `## ` heading, contains `## Summary of Findings` or `## Cross-Cutting Analysis`, and has at least one severity tag (`**CRITICAL -- `, `**HIGH -- `, `**MEDIUM -- `, `**LOW -- `, or `**INFO -- `). If validation fails, note the file as INCOMPLETE in synthesis.
 5. Report Stage 2 completion to user with domain names and finding counts
 
 ---
@@ -194,7 +202,7 @@ After launching all 3:
 1. Use `TaskOutput(block: true, timeout: 600000)` on each agent (up to 10 minutes each — Stage 3 reads the most material)
 2. Each agent should return ONLY a short confirmation
 3. Use Glob to verify all files exist: `docs/audit/function-audit/stage3/*.md`
-4. Quick-validate each output file: Read the first 5 and last 5 lines. Verify the file is non-empty, contains at least one `## ` heading, and has at least one severity tag (`**CRITICAL -- ` or `**WARNING -- ` or `**INFO -- `). If validation fails, note the file as INCOMPLETE in synthesis.
+4. Quick-validate each output file: Read the first 5 and last 5 lines. Verify the file is non-empty, contains at least one `## ` heading, and has at least one severity tag (`**CRITICAL -- `, `**HIGH -- `, `**MEDIUM -- `, `**LOW -- `, or `**INFO -- `). If validation fails, note the file as INCOMPLETE in synthesis.
 5. Report Stage 3 completion to user
 
 ---
@@ -203,29 +211,38 @@ After launching all 3:
 
 After all 3 stages are complete, the orchestrator (you, in the main context) performs synthesis:
 
-### 1. Read All Output Files
-Read each file in `docs/audit/function-audit/` (stage1, stage2, stage3) **one at a time**, tallying findings as you go. Do NOT try to hold all files in context simultaneously — read one, count its findings, then move to the next.
+### 1. Gather Findings via Grep (do NOT read full files)
+Use **Grep** to extract all findings and verdicts in one pass — do NOT read each output file in full:
+- `Grep(pattern: "\\*\\*(CRITICAL|HIGH|MEDIUM|LOW|INFO) -- ", path: "docs/audit/function-audit/", output_mode: "content")` — returns all findings with file paths and line numbers
+- `Grep(pattern: "\\*\\*Verdict\\*\\*: \\*\\*", path: "docs/audit/function-audit/", output_mode: "content")` — returns all verdicts
 
-### 2. Count Findings
-Parse each file for findings by severity. Use these exact patterns to avoid over-counting:
-- Count lines matching `**CRITICAL --` (finding-level severity)
-- Count lines matching `**WARNING --` (finding-level severity)
-- Count lines matching `**INFO --` (finding-level severity)
+### 2. Tally Findings from Grep Results
+From the Grep output, count findings per severity per file:
+- Count `**CRITICAL --` matches per file
+- Count `**HIGH --` matches per file
+- Count `**MEDIUM --` matches per file
+- Count `**LOW --` matches per file
+- Count `**INFO --` matches per file
 
-Count per-function verdicts using these exact patterns:
-- Count lines matching `**Verdict**: **SOUND**`
-- Count lines matching `**Verdict**: **NEEDS_REVIEW**`
-- Count lines matching `**Verdict**: **ISSUE_FOUND**`
+Count per-function verdicts:
+- Count `**Verdict**: **SOUND**` matches
+- Count `**Verdict**: **NEEDS_REVIEW**` matches
+- Count `**Verdict**: **ISSUE_FOUND**` matches
 
-Do NOT count domain-level overall verdicts (e.g., "Overall Domain Verdict: **SOUND**") in the per-function tally — track those separately.
+Do NOT count domain-level overall verdicts (e.g., "Overall Domain Verdict:") in the per-function tally — track those separately.
 
-### 3. Write INDEX.md
+### 3. Extract Finding Details for Master Table
+From the Grep results in step 1, extract each finding's:
+- Severity tag (`CRITICAL`, `HIGH`, `MEDIUM`, `LOW`, `INFO`)
+- Finding title (text after `-- ` up to `**`)
+- Source file path (from Grep output)
+- Location: use `Grep(pattern: "### \\w+", path: "{file}")` on each file with findings to map findings to their parent function
+
+Only Read individual files briefly (first/last 10 lines) for executive summary context.
+
+### 4. Write INDEX.md
 Write `docs/audit/function-audit/INDEX.md` containing:
-- Table of contents linking to every output file (including stage0 and review)
-- Per-file finding counts (Critical / Warning / Info)
-- Per-file verdict
 
-Format:
 ```markdown
 # Function Audit -- Index
 
@@ -240,42 +257,54 @@ Format:
 ## Stage 1: Foundation Context
 | File | Description | Findings |
 |------|-------------|----------|
-| [state-variable-map.md](stage1/state-variable-map.md) | State variable analysis | {C} critical, {W} warnings, {I} info |
+| [state-variable-map.md](stage1/state-variable-map.md) | State variable analysis | {C}C / {H}H / {M}M / {L}L / {I}I |
 | ... | ... | ... |
 
 ## Stage 2: Per-Domain Analysis
 | File | Domain | Functions | Verdict | Findings |
 |------|--------|-----------|---------|----------|
-| [domain-{slug}.md](stage2/domain-{slug}.md) | {name} | {N} | {verdict} | {C}C / {W}W / {I}I |
+| [domain-{slug}.md](stage2/domain-{slug}.md) | {name} | {N} | {verdict} | {C}C / {H}H / {M}M / {L}L / {I}I |
 | ... | ... | ... | ... | ... |
 
 ## Stage 3: Cross-Cutting Audit
 | File | Focus | Findings |
 |------|-------|----------|
-| [state-consistency.md](stage3/state-consistency.md) | Accounting invariants, divergent tracking | {C}C / {W}W / {I}I |
+| [state-consistency.md](stage3/state-consistency.md) | Accounting invariants, divergent tracking | {C}C / {H}H / {M}M / {L}L / {I}I |
 | ... | ... | ... |
+
+## All Findings
+
+| # | Severity | Finding | Location | Source File |
+|---|----------|---------|----------|-------------|
+| 1 | CRITICAL | {title} | `Contract.function()` L{line} | [domain-{slug}.md](stage2/domain-{slug}.md) |
+| 2 | HIGH | {title} | `Contract.function()` L{line} | [state-consistency.md](stage3/state-consistency.md) |
+| ... | ... | ... | ... | ... |
+
+Sort by severity (CRITICAL first, then HIGH, MEDIUM, LOW, INFO).
 
 ## Totals
 - **CRITICAL**: {total}
-- **WARNING**: {total}
+- **HIGH**: {total}
+- **MEDIUM**: {total}
+- **LOW**: {total}
 - **INFO**: {total}
 - Functions: **SOUND** {N} | **NEEDS_REVIEW** {N} | **ISSUE_FOUND** {N}
 ```
 
-### 4. Write SUMMARY.md
+### 5. Write SUMMARY.md
 Write `docs/audit/function-audit/SUMMARY.md` containing:
 - Executive summary (2-3 paragraphs)
-- Top CRITICAL findings (if any) with file links
-- Top WARNING findings with file links
+- Top CRITICAL and HIGH findings (if any) with file links
+- Notable MEDIUM findings with file links
 - Cross-cutting themes observed
 - Recommended action items (prioritized)
 
-### 5. Report to User
+### 6. Report to User
 Display finding stats and ask if the user wants to proceed to human review:
 - Total files generated
-- Finding breakdown by severity
+- Finding breakdown by severity (5 levels)
 - Verdict breakdown
-- Any CRITICAL findings highlighted
+- Any CRITICAL or HIGH findings highlighted
 - "Proceed to findings review? [yes/no]"
 
 If the user declines, output links to INDEX.md and SUMMARY.md and stop.
@@ -286,15 +315,17 @@ If the user declines, output links to INDEX.md and SUMMARY.md and stop.
 
 Read the review flow from `resources/REVIEW_PROMPTS.md` (Stage 4 section). Execute interactively:
 
-1. **Extract findings**: Parse all stage2/ and stage3/ files for `**CRITICAL -- `, `**WARNING -- `, `**INFO -- ` patterns. Also note `DESIGN_DECISION -- ` tagged findings separately.
+1. **Extract findings**: Parse all stage2/ and stage3/ files for `**CRITICAL -- `, `**HIGH -- `, `**MEDIUM -- `, `**LOW -- `, `**INFO -- ` patterns. Also note `DESIGN_DECISION -- ` tagged findings separately.
 
 2. **Present CRITICALs** (if any): Numbered list with finding title, source function, file link. Ask user to classify each: `BUG`, `DESIGN`, `DISPUTED`, or `DISCUSS`.
 
-3. **Present WARNINGs** (if any): Same format.
+3. **Present HIGHs** (if any): Same format.
 
-4. **Present INFOs**: Show count summary (total, design-decision tagged, other). Ask "Review INFOs? [skip/review]". If review, present in batches of 10.
+4. **Present MEDIUMs** (if any): Same format.
 
-5. **Follow-up on DISPUTED/DISCUSS**: For each, show full finding text + relevant source code, ask user for reasoning, record response.
+5. **Present LOWs and INFOs**: Show count summary (total LOWs, total INFOs, design-decision tagged, other). Ask "Review LOWs and INFOs? [skip/review]". If review, present in batches of 10.
+
+6. **Follow-up on DISPUTED/DISCUSS**: For each, show full finding text + relevant source code, ask user for reasoning, record response.
 
 6. **Write output**: Write `docs/audit/function-audit/review/review-responses.md` using the format from REVIEW_PROMPTS.md.
 
@@ -327,8 +358,8 @@ After Stage 5 completes (or is skipped), update `SUMMARY.md` with a "Human Revie
 | # | Finding | Original | Classification | Final Status |
 |---|---------|----------|----------------|-------------|
 | 1 | {title} | CRITICAL | BUG | BUG |
-| 2 | {title} | WARNING | DISPUTED | UPHELD (WARNING) |
-| 3 | {title} | WARNING | DISPUTED | WITHDRAWN |
+| 2 | {title} | HIGH | DISPUTED | UPHELD (HIGH) |
+| 3 | {title} | MEDIUM | DISPUTED | WITHDRAWN |
 
 - **Confirmed bugs**: {N}
 - **Design decisions**: {N}
@@ -357,15 +388,13 @@ Display final summary to the user with links to all output files.
 - **Stages are sequential** — Stage 0 → 1 → 2 → 3 → Synthesis → 4 → 5. Only agents *within* each stage run in parallel.
 - **Always complete Stage 3** — cross-cutting issues emerge from combining individually-sound functions, even when no CRITICALs are found in Stage 2.
 - **Always block on TaskOutput** — use `block: true` and wait for agent completion. Unfinished agents produce incomplete analysis.
-- **Stage 0 is best-effort** — if no design signals are detected, write an empty design-decisions.md noting "No design decisions detected" and proceed. Agents will evaluate all findings independently.
+- **Stage 0 is best-effort** — if no design signals are detected, write an empty design-decisions.md and proceed. Agents evaluate independently.
 - **Stage 4 requires patience** — present findings in severity batches, not one-by-one. Let the user classify at their own pace. Never auto-classify.
 - **Stage 5 is conditional** — only runs if DISPUTED or DISCUSS items exist. Do not spawn the re-evaluation agent otherwise.
 
 ---
 
 ## Notes
-
-- **Agent type**: All agents use `subagent_type: "general-purpose"`.
-- **File paths**: Always use absolute paths in agent prompts so agents can Read files without ambiguity.
-- **Error handling**: If an agent fails or times out, report the failure and continue with remaining agents. In synthesis, note the missing file in INDEX.md with status `INCOMPLETE — agent failed` and proceed using available outputs.
-- **Idempotency**: Running again overwrites previous output files. Consider renaming the old directory first if you want to preserve it.
+- **Agents**: All use `subagent_type: "general-purpose"` with absolute paths in all prompts.
+- **Error handling**: If an agent fails or times out, report the failure and continue with remaining agents. Note missing files in INDEX.md as `INCOMPLETE — agent failed`.
+- **Previous runs**: Step 0 of Pre-Flight checks for existing output and offers archive, overwrite, or cancel options.

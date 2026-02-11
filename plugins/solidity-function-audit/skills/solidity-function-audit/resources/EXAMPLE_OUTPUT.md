@@ -35,13 +35,13 @@ This is a trimmed example from an actual analysis of the Deposit & Exchange Rate
 
   1. **INFO -- preDepositStake calculation is correct**. Line 230: `uint256 preDepositStake = getTotalPooledStake() - msg.value`. Since `address(this).balance` already includes `msg.value` at the point of execution (Solidity semantics for `payable` functions), the subtraction correctly recovers the pre-deposit total pooled stake.
 
-  2. **WARNING -- Underflow revert acts as implicit insolvency guard**. The subtraction `getTotalPooledStake() - msg.value` will revert with arithmetic underflow if `getTotalPooledStake() < msg.value`. The revert reason will be a generic `Panic(0x11)` rather than a descriptive custom error. Consider adding an explicit check for better UX.
+  2. **LOW -- Underflow revert acts as implicit insolvency guard**. The subtraction `getTotalPooledStake() - msg.value` will revert with arithmetic underflow if `getTotalPooledStake() < msg.value`. The revert reason will be a generic `Panic(0x11)` rather than a descriptive custom error. Consider adding an explicit check for better UX.
 
   3. **INFO -- Zero-share deposit protection**. Line 232: `if (shares == 0) revert StakingVault__InvalidAmount()` prevents dust deposits that produce zero shares.
 
   4. **INFO -- Slippage protection**. Lines 234-236: `minShares > 0 && shares < minShares` check allows callers to skip by passing 0.
 
-- **Verdict**: **SOUND**
+- **Verdict**: **NEEDS_REVIEW**
 
 ---
 
@@ -92,10 +92,10 @@ All rounding directions are protocol-favorable.
 
 | # | Severity | Function | Finding |
 |---|----------|----------|---------|
-| 1 | WARNING | `deposit()` | Generic `Panic(0x11)` underflow during insolvency instead of custom error |
-| 2 | WARNING | `getTotalPooledStake()` | Stale internal stake tracking overestimates pool during slashing |
+| 1 | LOW | `deposit()` | Generic `Panic(0x11)` underflow during insolvency instead of custom error |
+| 2 | MEDIUM | `getTotalPooledStake()` | Stale internal stake tracking overestimates pool during slashing |
 | 3 | INFO | `_stakeToShares` / `_sharesToStake` | Rounding directions correctly protocol-favorable |
 
 ---
 
-## Overall Domain Verdict: **SOUND** (with 2 non-critical warnings)
+## Overall Domain Verdict: **NEEDS_REVIEW** (1 MEDIUM, 1 LOW finding)

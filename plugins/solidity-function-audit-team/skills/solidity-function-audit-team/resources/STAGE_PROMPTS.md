@@ -49,7 +49,7 @@ Also document constants/immutables separately, storage layout (ERC-7201 namespac
 Your teammates and their roles:
 {teammate_roles}
 
-Only message teammates about CRITICAL findings or cross-domain state dependencies. Write WARNING/INFO observations to your output file only.
+Only message teammates about CRITICAL or HIGH findings or cross-domain state dependencies. Write MEDIUM/LOW/INFO observations to your output file only.
 - If you discover an unprotected storage variable (no access control on its writers), message the **Access Control** teammate
 - If you find state written before an external call without reentrancy protection, message the **External Calls** teammate
 - If you find duplicated state tracking (same value stored in two places), note it in your output file in a `## Cross-Cutting Notes` section. If the relevant teammate is still active, also message them.
@@ -89,7 +89,7 @@ Also analyze: role hierarchy, access control gaps, modifier consistency, pause m
 Your teammates and their roles:
 {teammate_roles}
 
-Only message teammates about CRITICAL findings or cross-domain state dependencies. Write WARNING/INFO observations to your output file only.
+Only message teammates about CRITICAL or HIGH findings or cross-domain state dependencies. Write MEDIUM/LOW/INFO observations to your output file only.
 - If you find a privileged function that delegates to an external contract, message the **External Calls** teammate
 - If you find access control gaps (functions that should be restricted but aren't), message the **State Variables** teammate to check what state those functions can modify
 - If you find role escalation paths, note it in your output file in a `## Cross-Cutting Notes` section. If the relevant teammates are still active, also message them.
@@ -129,7 +129,7 @@ Also analyze: delegatecall storage safety, low-level call success checks, ETH tr
 Your teammates and their roles:
 {teammate_roles}
 
-Only message teammates about CRITICAL findings or cross-domain state dependencies. Write WARNING/INFO observations to your output file only.
+Only message teammates about CRITICAL or HIGH findings or cross-domain state dependencies. Write MEDIUM/LOW/INFO observations to your output file only.
 - If you find a reentrancy vector (external call with state changes after), message the **State Variables** teammate to identify which state is at risk
 - If you find an external call to an untrusted target without access control, message the **Access Control** teammate
 - If you find a callback pattern that could be exploited, note it in your output file in a `## Cross-Cutting Notes` section. If the relevant teammates are still active, also message them.
@@ -174,7 +174,7 @@ Read the design decisions file: {design_decisions_file}
 
 When evaluating findings, apply these rules:
 - Behavior that MATCHES a documented decision → classify as `INFO` with prefix `DESIGN_DECISION -- `
-- Behavior that CONTRADICTS a documented decision → classify as WARNING or CRITICAL and note the contradiction explicitly
+- Behavior that CONTRADICTS a documented decision → classify as MEDIUM or higher and note the contradiction explicitly
 - No relevant decision → evaluate independently as before
 
 Do NOT skip analysis of design-decision areas. Still analyze them fully — the decision only affects the severity classification, not whether you investigate.
@@ -199,7 +199,7 @@ When analyzing each function, also consider the following and capture them as nu
 - **Edge cases**: Zero values, overflow, empty arrays, first/last element
 - **Arithmetic**: Rounding direction, precision loss, overflow potential
 
-These should appear as INFO/WARNING/CRITICAL findings in the Findings section, NOT as separate sections.
+These should appear as INFO/LOW/MEDIUM/HIGH/CRITICAL findings in the Findings section, NOT as separate sections.
 
 ## Quality Reference
 For an example of the expected quality and depth, see: {example_file}
@@ -208,7 +208,7 @@ For an example of the expected quality and depth, see: {example_file}
 Your teammates and their roles:
 {teammate_roles}
 
-Only message teammates about CRITICAL findings or cross-domain state dependencies. Write WARNING/INFO observations to your output file only.
+Only message teammates about CRITICAL or HIGH findings or cross-domain state dependencies. Write MEDIUM/LOW/INFO observations to your output file only.
 - If your domain reads or depends on state written by another domain, message that domain's analyst with the specific variable and your concern
 - If you find a function that can break assumptions in another domain, message that domain's analyst
 - If you discover a cross-domain invariant (e.g., "total deposits must equal sum of validator stakes + available balance"), message all affected domain analysts
@@ -230,7 +230,7 @@ If the source files import ERC20/ERC721/ERC4626/IERC20/SafeERC20, check each fun
 - Pausable/blocklist tokens: can a paused/blocked token brick the protocol?
 - Permit/approval race conditions: is the approval pattern safe?
 - Tokens with hooks (ERC777): reentrancy via token transfer callbacks?
-Note relevant findings as WARNING or INFO in the Findings section.
+Note relevant findings as LOW/MEDIUM/HIGH or INFO in the Findings section.
 
 ## Output Format
 Write a complete markdown document to {output_file} with:
@@ -266,7 +266,7 @@ Read the design decisions file: {design_decisions_file}
 
 When evaluating findings, apply these rules:
 - Behavior that MATCHES a documented decision → classify as `INFO` with prefix `DESIGN_DECISION -- `
-- Behavior that CONTRADICTS a documented decision → classify as WARNING or CRITICAL and note the contradiction explicitly
+- Behavior that CONTRADICTS a documented decision → classify as MEDIUM or higher and note the contradiction explicitly
 - No relevant decision → evaluate independently as before
 
 ## Source Files to Read (one absolute path per line)
@@ -287,7 +287,7 @@ Analyze these four areas, using specific contract references and line numbers:
 Your teammates and their roles:
 {teammate_roles}
 
-Only message teammates about CRITICAL findings or cross-domain state dependencies. Write WARNING/INFO observations to your output file only.
+Only message teammates about CRITICAL or HIGH findings or cross-domain state dependencies. Write MEDIUM/LOW/INFO observations to your output file only.
 - If you find an invariant violation that has numerical impact (precision loss, rounding error), message the **Math & Rounding** auditor
 - If you find state inconsistency exploitable via reentrancy or callback, message the **Reentrancy & Trust** auditor
 - If another auditor messages you about a finding, investigate its state consistency implications and respond
@@ -319,7 +319,7 @@ Read the design decisions file: {design_decisions_file}
 
 When evaluating findings, apply these rules:
 - Behavior that MATCHES a documented decision → classify as `INFO` with prefix `DESIGN_DECISION -- `
-- Behavior that CONTRADICTS a documented decision → classify as WARNING or CRITICAL and note the contradiction explicitly
+- Behavior that CONTRADICTS a documented decision → classify as MEDIUM or higher and note the contradiction explicitly
 - No relevant decision → evaluate independently as before
 
 ## Source Files to Read (one absolute path per line)
@@ -341,7 +341,7 @@ Analyze these five areas, using specific contract references and line numbers:
 Your teammates and their roles:
 {teammate_roles}
 
-Only message teammates about CRITICAL findings or cross-domain state dependencies. Write WARNING/INFO observations to your output file only.
+Only message teammates about CRITICAL or HIGH findings or cross-domain state dependencies. Write MEDIUM/LOW/INFO observations to your output file only.
 - If you find a rounding error that could cause state divergence over time, message the **State Consistency** auditor
 - If you find an exchange rate manipulation vector that requires reentrancy, message the **Reentrancy & Trust** auditor
 - If another auditor messages you about a finding, check its numerical implications and respond
@@ -373,7 +373,7 @@ Read the design decisions file: {design_decisions_file}
 
 When evaluating findings, apply these rules:
 - Behavior that MATCHES a documented decision → classify as `INFO` with prefix `DESIGN_DECISION -- `
-- Behavior that CONTRADICTS a documented decision → classify as WARNING or CRITICAL and note the contradiction explicitly
+- Behavior that CONTRADICTS a documented decision → classify as MEDIUM or higher and note the contradiction explicitly
 - No relevant decision → evaluate independently as before
 
 ## Source Files to Read (one absolute path per line)
@@ -395,7 +395,7 @@ Analyze these five areas, using specific contract references and line numbers:
 Your teammates and their roles:
 {teammate_roles}
 
-Only message teammates about CRITICAL findings or cross-domain state dependencies. Write WARNING/INFO observations to your output file only.
+Only message teammates about CRITICAL or HIGH findings or cross-domain state dependencies. Write MEDIUM/LOW/INFO observations to your output file only.
 - If you find a callback vector that could cause state inconsistency, message the **State Consistency** auditor
 - If you find a reentrancy path that could manipulate exchange rates or arithmetic, message the **Math & Rounding** auditor
 - If another auditor messages you about a finding, check its reentrancy/trust implications and respond

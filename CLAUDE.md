@@ -79,7 +79,7 @@ Both use semver (MAJOR.MINOR.PATCH). Optional fields available in the spec: `aut
 
 **Domain grouping heuristic** — Pre-flight discovery groups contract functions into 4-10 domains of 3-15 functions each, confirmed with the user before launching agents.
 
-**Severity definitions**: CRITICAL (loss of funds, unauthorized access, broken invariants), WARNING (conditional impact), INFO (observations, design choices). **Verdicts**: SOUND, NEEDS_REVIEW, ISSUE_FOUND. **Review statuses**: BUG, DESIGN, DISPUTED, DISCUSS. **Re-evaluation outcomes**: UPHELD, WITHDRAWN, DOWNGRADED, NEEDS_TESTING.
+**Severity definitions**: CRITICAL (direct loss of funds, unauthorized access, broken core invariants — exploitable now), HIGH (conditional loss of funds, significant access control bypass — requires specific conditions), MEDIUM (protocol behavior deviation, incorrect state under edge conditions — limited financial impact), LOW (best practices, gas optimizations with security implications, minor unlikely issues), INFO (observations, design choices, confirmations). **Verdicts**: SOUND (only INFO or no findings), NEEDS_REVIEW (MEDIUM or LOW findings, no CRITICAL/HIGH), ISSUE_FOUND (CRITICAL or HIGH finding). **Review statuses**: BUG, DESIGN, DISPUTED, DISCUSS. **Re-evaluation outcomes**: UPHELD, WITHDRAWN, DOWNGRADED, NEEDS_TESTING.
 
 **Output directory**: `docs/audit/function-audit/{stage0,stage1,stage2,stage3,review}/` with `INDEX.md` and `SUMMARY.md` at the root. Stage 2 files use `domain-{slug}.md` naming.
 
@@ -99,7 +99,7 @@ Both use semver (MAJOR.MINOR.PATCH). Optional fields available in the spec: `aut
 - Timeouts: Stage 1 = 5 min (300000ms), Stage 2 & 3 = 10 min (600000ms)
 - Turn limits: Stage 1/5 = 15 `max_turns`, Stage 2/3 = 25 `max_turns`
 - `{design_decisions_file}` is only substituted into Stage 2 and Stage 3 prompts (Stage 1 does not use it)
-- Re-running a skill overwrites output; rename old `function-audit/` directory to preserve previous runs
+- Re-running a skill checks for existing output; offers archive, overwrite, or cancel options
 
 ---
 

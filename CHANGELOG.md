@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.5.0] - 2026-02-11
+
+### Added
+- **5-level severity scale** (both variants): Replaced 3-level CRITICAL/WARNING/INFO with 5-level CRITICAL/HIGH/MEDIUM/LOW/INFO. CRITICAL = direct loss of funds (exploitable now), HIGH = conditional loss of funds (requires specific conditions), MEDIUM = protocol behavior deviation (limited financial impact), LOW = best practices and minor issues, INFO = observations and design choices. Verdict mapping updated: ISSUE_FOUND requires CRITICAL or HIGH, NEEDS_REVIEW for MEDIUM/LOW, SOUND for INFO-only.
+- **Previous run handling** (both variants): New "Step 0: Check for Previous Run" in Pre-Flight. If `docs/audit/function-audit/` exists, offers Archive (rename with timestamp), Overwrite (delete and proceed), or Cancel. Replaces the passive "rename old directory" note.
+- **Consolidated findings table** (both variants): INDEX.md now includes an "All Findings" section — a master table with severity, title, location, and source file link for every finding, sorted by severity.
+- **Agent specialization** (team only): Each teammate receives a role-specific prompt opening with identity and specialty context (e.g., "You are **state-vars**, a Solidity security auditor specializing in **state variable analysis**") instead of the previous generic shared prompt.
+
+### Changed
+- **Lean pre-flight discovery** (both variants): Pre-flight steps 2-3 now use Grep-only discovery with context flags instead of reading full source files. Only reads a specific file when domain grouping is ambiguous.
+- **Incremental synthesis** (both variants): Synthesis now uses Grep to extract all findings and verdicts in one pass instead of reading each output file in full. Only reads first/last 10 lines of individual files for executive summary context.
+- **Task prompt construction** (team only): Added guidance to build task descriptions mechanically from templates without analyzing code content.
+- **Slither severity mapping** (both variants): Updated from High→CRITICAL/Medium→WARNING/Low→INFO to High→HIGH/Medium→MEDIUM/Low→LOW/Informational→INFO for consistency with the new 5-level scale.
+- **Output validation hooks** (both variants): Updated regex from `CRITICAL|WARNING|INFO` to `CRITICAL|HIGH|MEDIUM|LOW|INFO` in both `validate-output.sh` scripts.
+- **FUNCTION_TEMPLATE.md** (both): New severity definitions, updated verdict mapping, 5-level finding format.
+- **EXAMPLE_OUTPUT.md** (both): Updated example severity tags (WARNING→LOW/MEDIUM as appropriate).
+- **REVIEW_PROMPTS.md** (both): 5-level review flow (CRITICALs → HIGHs → MEDIUMs → LOWs+INFOs), updated classification summary table.
+- **STAGE_PROMPTS.md** (both): All severity references updated to 5-level scale. Team variant Communication Guidelines updated to message on CRITICAL/HIGH findings.
+- **CLAUDE.md**: Updated severity definitions and re-running note in Conventions section.
+
 ## [1.4.1] - 2026-02-11
 
 ### Fixed
