@@ -1,6 +1,6 @@
 {
   "name": "solidity-audit-skills",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Solidity smart contract audit skills for Claude Code. Per-function audit with 6-stage pipeline: design decisions, parallelized analysis, human review, dispute re-evaluation.",
   "author": "gonzaloetjo",
   "plugins": [

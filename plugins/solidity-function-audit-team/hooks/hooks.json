@@ -1,0 +1,16 @@
+{
+  "description": "Output validation for solidity-function-audit-team tasks",
+  "hooks": {
+    "TaskCompleted": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/validate-output.sh\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

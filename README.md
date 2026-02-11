@@ -115,19 +115,6 @@ All output goes to `docs/audit/function-audit/`.
 
 If [Slither](https://github.com/crytic/slither) is installed (`pip install slither-analyzer`), it runs automatically before agents start. Agents cross-reference their manual analysis with Slither's automated detections — confirming findings, identifying false positives, and noting what Slither missed.
 
-## Companion Skills
-
-If you have Trail of Bits' security skills installed (`trailofbits/skills`), the pipeline detects them and spawns additional Stage 3 agents:
-
-| Skill | When it runs |
-|-------|-------------|
-| `token-integration-analyzer` | Project imports token interfaces (ERC20, ERC721, ERC4626) |
-| `guidelines-advisor` | Always |
-| `entry-point-analyzer` | Always |
-| `variant-analysis` | Always |
-
-No configuration needed — detection is automatic based on what's installed in `~/.claude/`.
-
 ## Solo vs Team
 
 Both variants run the same 6-stage pipeline (Stage 0 → 1 → 2 → 3 → 4 → 5). Stages 0, 4, and 5 are interactive and identical in both. The difference is how Stages 1-3 run:

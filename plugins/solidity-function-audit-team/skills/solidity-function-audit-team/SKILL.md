@@ -56,21 +56,23 @@ Display to the user:
 Build the list of all .sol source file paths (absolute paths) that teammates will need to read. Format as one absolute path per line when substituting into `{source_file_list}` placeholders in teammate prompts.
 
 ### 8. Detect Project Characteristics
-Scan source files for DeFi-relevant patterns to determine which companion skills are relevant:
+Scan source files for DeFi-relevant patterns to condition Stage 2/3 prompts:
 - **Token interfaces**: Grep for `ERC20`, `ERC721`, `ERC1155`, `ERC4626`, `IERC20`, `SafeERC20` → set `{has_tokens}` true/false
 - **Proxy/upgrade patterns**: Grep for `UUPSUpgradeable`, `TransparentProxy`, `Initializable` → set `{has_proxies}` true/false
 - **Oracle imports**: Grep for `AggregatorV3Interface`, `IOracle`, `TWAP` → set `{has_oracles}` true/false
 
-### 9. Detect Companion Skills
-Search for known companion skills from the Trail of Bits marketplace (`trailofbits/skills`):
-- Glob: `~/.claude/**/token-integration-analyzer/**/SKILL.md` → relevant if `{has_tokens}`
-- Glob: `~/.claude/**/guidelines-advisor/**/SKILL.md` → always relevant
-- Glob: `~/.claude/**/entry-point-analyzer/**/SKILL.md` → always relevant
-- Glob: `~/.claude/**/variant-analysis/**/SKILL.md` → always relevant
+---
 
-For each found, record its directory path. Store as `{companion_skills}` list (may be empty).
+## Context Compaction Guidance
 
-If any found, display: "Detected companion skills: {names}. These will run as additional Stage 3 agents."
+If auto-compaction occurs during this session, preserve these critical values:
+- `PROJECT_PATH` and all source file paths
+- Domain groupings with function lists
+- All output file absolute paths (stage0/, stage1/, stage2/, stage3/, review/)
+- All placeholder values: `{design_decisions_file}`, `{slither_file}`, `{template_file}`, `{example_file}`
+- Finding tallies per stage (CRITICAL/WARNING/INFO counts)
+- Current stage number and completion status of each stage
+- Team name (`function-audit`) and all task IDs with their statuses
 
 ---
 
@@ -80,14 +82,13 @@ Capture developer intent before the automated audit. Read `resources/REVIEW_PROM
 
 1. **Automated extraction**: Grep source files for NatSpec `@dev` comments, static analysis annotations, intent keywords, and code-level patterns (rounding, access control, upgrades, reentrancy, pausability)
 2. **Interactive confirmation**: Present detections grouped by category, ask user to confirm/correct/add context per category
-3. **Write output**: Write `docs/audit/function-audit/stage0/design-decisions.md`. Store path as `{design_decisions_file}` for agent prompts.
+3. **Write output**: Write `docs/audit/function-audit/stage0/design-decisions.md`. Store path as `{design_decisions_file}` for Stage 2 and Stage 3 agent prompts.
 
 ### 8. Confirm with User
 
 Display to the user:
 - Number of contracts found, functions found, domain groupings
 - Design decisions summary (categories and counts)
-- Companion skills detected (if any)
 - Ask for confirmation before proceeding to Stage 1
 
 ---
@@ -98,10 +99,10 @@ Run Slither static analysis if available. This is NOT a teammate — the lead do
 
 1. Run `which slither` via Bash
 2. If not found → display "Slither not detected. Install with `pip install slither-analyzer` for automated static analysis. Continuing without it." → set `{slither_file}` to empty → proceed
-3. If found → run `slither . --json /tmp/slither-output.json --exclude-informational --filter-paths "test|script|lib|node_modules" 2>/dev/null || true`
-4. Read `/tmp/slither-output.json` with the Read tool
-5. Map findings: High→CRITICAL, Medium→WARNING, Low→INFO
-6. Write formatted results to `docs/audit/function-audit/stage0/slither-findings.md`
+3. If found → run `slither . --json /tmp/slither-output.json --exclude-informational --filter-paths "test|script|lib|node_modules" 2>&1 || true`
+4. Check if `/tmp/slither-output.json` exists and is non-empty (use Bash: `test -s /tmp/slither-output.json`)
+5. If the file doesn't exist or is empty → display "Slither failed to analyze the project (likely a compilation or solc version issue). Continuing without it." → set `{slither_file}` to empty → proceed to Stage 1
+6. If the file exists → Read it, map findings (High→CRITICAL, Medium→WARNING, Low→INFO), write to `docs/audit/function-audit/stage0/slither-findings.md`
 7. Display summary: "Slither found N findings (C critical, W warnings, I info)"
 8. Store path as `{slither_file}` for teammate prompts
 
@@ -143,7 +144,7 @@ This creates the shared task list and team config at `~/.claude/teams/function-a
 
 ### Step 2: Create ALL tasks using TaskCreate tool
 
-Create every task upfront BEFORE spawning any teammates. Read the prompt templates from `resources/STAGE_PROMPTS.md` and fill in all placeholders, including `{design_decisions_file}` (absolute path to `stage0/design-decisions.md`) and `{slither_file}` (absolute path to `stage0/slither-findings.md`, or empty string if Slither was not run). Each task's `description` field must contain the FULL analysis prompt (the filled-in template from STAGE_PROMPTS.md), not a summary.
+Create every task upfront BEFORE spawning any teammates. Read the prompt templates from `resources/STAGE_PROMPTS.md` and fill in all placeholders. For Stage 2 and Stage 3 tasks, fill in `{design_decisions_file}` (absolute path to `stage0/design-decisions.md`) and `{slither_file}` (absolute path to `stage0/slither-findings.md`, or empty string if Slither was not run). Stage 1 prompts do not use these placeholders. Each task's `description` field must contain the FULL analysis prompt (the filled-in template from STAGE_PROMPTS.md), not a summary.
 
 **Stage 1 tasks** (no dependencies — created first):
 
@@ -166,6 +167,8 @@ For each domain, call `TaskCreate`:
 
 Then call `TaskUpdate` to set dependencies:
 - `TaskUpdate(taskId: "{stage2_task_id}", addBlockedBy: ["{T1_id}", "{T2_id}", "{T3_id}"])`
+
+For `{source_file_list}` in Stage 2 prompts, scope to domain-relevant files only: include files containing the domain's functions, files containing contracts called by those functions (from Stage 1c external call map), and files containing inherited contracts or imported libraries. Do NOT include all project source files.
 
 For `{teammate_roles}` in Stage 2 prompts, list ALL teammates across all stages so domain analysts can message anyone:
 ```
@@ -194,18 +197,6 @@ Call `TaskCreate` 3 times:
 
 Then call `TaskUpdate` to set dependencies on ALL Stage 2 task IDs:
 - `TaskUpdate(taskId: "{stage3_task_id}", addBlockedBy: ["{T4_id}", "{T5_id}", ..., "{T3+N_id}"])`
-
-**Companion skill tasks** (conditional — one per detected companion skill, same dependencies as Stage 3):
-
-If `{companion_skills}` is non-empty, for each companion skill:
-- `TaskCreate(subject: "Companion: {skill_name}", description: "<filled companion agent prompt from STAGE_PROMPTS.md>", activeForm: "Running {skill_name} analysis")`
-- `TaskUpdate(taskId: "{companion_task_id}", addBlockedBy: ["{T4_id}", "{T5_id}", ..., "{T3+N_id}"])` (same Stage 2 deps as 3a/3b/3c)
-
-Fill in the companion agent prompt template from `resources/STAGE_PROMPTS.md` with:
-- `{skill_path}` — the directory containing the companion skill's SKILL.md
-- `{skill_name}` — the companion skill name
-- `{output_file}` — `docs/audit/function-audit/stage3/companion-{skill-slug}.md`
-- `{stage1_file_list}`, `{stage2_file_list}`, `{slither_file}`, `{design_decisions_file}`, `{source_file_list}`
 
 For `{teammate_roles}` in Stage 3 prompts:
 ```
@@ -245,30 +236,25 @@ Spawn teammates with these exact `Task` tool calls:
 
 **Stage 1 teammates** (3):
 ```
-Task(subagent_type: "general-purpose", name: "state-vars", team_name: "function-audit", prompt: "<shared prompt above>", mode: "bypassPermissions")
-Task(subagent_type: "general-purpose", name: "access-ctrl", team_name: "function-audit", prompt: "<shared prompt above>", mode: "bypassPermissions")
-Task(subagent_type: "general-purpose", name: "ext-calls", team_name: "function-audit", prompt: "<shared prompt above>", mode: "bypassPermissions")
+Task(subagent_type: "general-purpose", name: "state-vars", team_name: "function-audit", prompt: "<shared prompt above>", mode: "bypassPermissions", max_turns: 15)
+Task(subagent_type: "general-purpose", name: "access-ctrl", team_name: "function-audit", prompt: "<shared prompt above>", mode: "bypassPermissions", max_turns: 15)
+Task(subagent_type: "general-purpose", name: "ext-calls", team_name: "function-audit", prompt: "<shared prompt above>", mode: "bypassPermissions", max_turns: 15)
 ```
 
 **Stage 2 teammates** (one per domain):
 ```
-Task(subagent_type: "general-purpose", name: "domain-{slug}", team_name: "function-audit", prompt: "<shared prompt above>", mode: "plan")
+Task(subagent_type: "general-purpose", name: "domain-{slug}", team_name: "function-audit", prompt: "<shared prompt above>", mode: "plan", max_turns: 25)
 ```
 Note: `mode: "plan"` requires plan approval from the lead before they can implement.
 
 **Stage 3 teammates** (3):
 ```
-Task(subagent_type: "general-purpose", name: "state-consistency", team_name: "function-audit", prompt: "<shared prompt above>", mode: "bypassPermissions")
-Task(subagent_type: "general-purpose", name: "math-rounding", team_name: "function-audit", prompt: "<shared prompt above>", mode: "bypassPermissions")
-Task(subagent_type: "general-purpose", name: "reentrancy-trust", team_name: "function-audit", prompt: "<shared prompt above>", mode: "bypassPermissions")
+Task(subagent_type: "general-purpose", name: "state-consistency", team_name: "function-audit", prompt: "<shared prompt above>", mode: "bypassPermissions", max_turns: 25)
+Task(subagent_type: "general-purpose", name: "math-rounding", team_name: "function-audit", prompt: "<shared prompt above>", mode: "bypassPermissions", max_turns: 25)
+Task(subagent_type: "general-purpose", name: "reentrancy-trust", team_name: "function-audit", prompt: "<shared prompt above>", mode: "bypassPermissions", max_turns: 25)
 ```
 
-**Companion skill teammates** (conditional — one per detected companion skill):
-```
-Task(subagent_type: "general-purpose", name: "companion-{skill-slug}", team_name: "function-audit", prompt: "<shared prompt above>", mode: "bypassPermissions")
-```
-
-Spawn ALL teammates at once (all stages, including companions). Teammates blocked by dependencies will wait automatically — the task list handles stage ordering.
+Spawn ALL teammates at once (all stages). Teammates blocked by dependencies will wait automatically — the task list handles stage ordering.
 
 ---
 
@@ -283,8 +269,14 @@ After spawning all teammates:
    - Cover ALL listed functions (no omissions)
    - Identify cross-domain state dependencies
    - Have reasonable focus areas
-5. When ALL tasks show status "completed" in TaskList, proceed to Synthesis
-6. Send shutdown requests to all teammates: `SendMessage(type: "shutdown_request", recipient: "<name>", content: "All tasks complete")`
+5. When ALL tasks show status "completed" in TaskList, quick-validate all output files before proceeding:
+   - Use Glob to verify files exist in `stage1/*.md`, `stage2/*.md`, and `stage3/*.md`
+   - Read the first 5 and last 5 lines of each file. Verify each is non-empty and contains `## ` headings
+   - For Stage 2 files: verify they contain `## Summary of Findings` or `## Cross-Cutting Analysis` and at least one severity tag (`**CRITICAL -- ` / `**WARNING -- ` / `**INFO -- `)
+   - For Stage 3 files: verify they contain at least one severity tag
+   - If validation fails for any file, note it as INCOMPLETE in synthesis
+6. Proceed to Synthesis
+7. Send shutdown requests to all teammates: `SendMessage(type: "shutdown_request", recipient: "<name>", content: "All tasks complete")`
 7. After all teammates shut down, call `TeamDelete` to clean up
 
 ### Concurrency
@@ -355,7 +347,7 @@ Read the review flow from `resources/REVIEW_PROMPTS.md` (Stage 4 section). Execu
 
 **Skip this stage** if no DISPUTED or DISCUSS items exist from Stage 4.
 
-If items exist: read the Stage 5 agent prompt from `resources/REVIEW_PROMPTS.md`, fill in placeholders (`{output_file}`, `{design_decisions_file}`, `{review_responses_file}`, `{source_file_list}`, `{disputed_findings}`), and launch ONE Task agent with `run_in_background: true`, `subagent_type: "general-purpose"`, `mode: "bypassPermissions"`. Wait with `TaskOutput(block: true, timeout: 600000)`.
+If items exist: read the Stage 5 agent prompt from `resources/REVIEW_PROMPTS.md`, fill in placeholders (`{output_file}`, `{design_decisions_file}`, `{review_responses_file}`, `{source_file_list}`, `{disputed_findings}`), and launch ONE Task agent with `run_in_background: true`, `subagent_type: "general-purpose"`, `mode: "bypassPermissions"`, `max_turns: 15`. Wait with `TaskOutput(block: true, timeout: 600000)`. Quick-validate the re-evaluation output: verify `review/re-evaluation.md` is non-empty and contains at least one `## ` heading. If validation fails, report the issue to the user.
 
 ### Final Synthesis Update
 

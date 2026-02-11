@@ -6,7 +6,7 @@ All teammates write COMPLETE analysis to the output file, then mark their task a
 
 ## Slither Cross-Reference Block
 
-Include this block in ALL teammate prompts (Stages 1, 2, 3, and companion) when `{slither_file}` is non-empty:
+Include this block in Stage 2 and Stage 3 teammate prompts when `{slither_file}` is non-empty:
 
 ```
 ## Automated Static Analysis
@@ -181,7 +181,8 @@ Do NOT skip analysis of design-decision areas. Still analyze them fully — the 
 ## Source Files to Read (one absolute path per line)
 {source_file_list}
 
-Read each file using the Read tool before analyzing.
+These are the source files relevant to your domain. Read each file using the Read tool before analyzing.
+If you need additional files referenced by imports or inheritance that are not listed, read them as needed.
 
 If a domain spans multiple contracts, analyze all functions together to catch cross-contract interactions.
 
@@ -219,6 +220,16 @@ After all per-function analyses, add a "Cross-Cutting Analysis" section:
 - Do inverse operations (deposit/withdraw, add/remove) correctly mirror each other?
 - Are rounding directions consistently protocol-favorable?
 - Are there any invariants that span multiple functions in this domain?
+
+## Token Integration Patterns (if project imports token interfaces)
+If the source files import ERC20/ERC721/ERC4626/IERC20/SafeERC20, check each function that handles tokens for:
+- Fee-on-transfer tokens: does the function use balance-before/after or trust transfer amounts?
+- Rebasing tokens: does internal accounting assume static balances?
+- Tokens with no return value (USDT): does the function use SafeERC20?
+- Pausable/blocklist tokens: can a paused/blocked token brick the protocol?
+- Permit/approval race conditions: is the approval pattern safe?
+- Tokens with hooks (ERC777): reentrancy via token transfer callbacks?
+Note relevant findings as WARNING or INFO in the Findings section.
 
 ## Output Format
 Write a complete markdown document to {output_file} with:
@@ -397,53 +408,3 @@ Write a complete markdown document to {output_file} with sections for each analy
 Write your COMPLETE analysis to {output_file} using the Write tool. Then mark your task as completed using the TaskUpdate tool. Do NOT return analysis text in your response — write it all to the file.
 ```
 
----
-
-## Companion Skill Agent Prompt
-
-```
-You are a Solidity security auditor. You have access to a specialized analysis skill.
-
-## Task
-Read the skill definition and apply its methodology to analyze the target contracts.
-Write your COMPLETE analysis to the file: {output_file}
-
-## Skill to Apply
-Read the skill at: {skill_path}/SKILL.md
-Read all resource files in: {skill_path}/resources/ (if the directory exists)
-Apply the skill's analysis methodology to the contracts listed below.
-
-## Prior Analysis to Read
-- Stage 1 files: {stage1_file_list}
-- Stage 2 files: {stage2_file_list}
-- Slither findings: {slither_file} (if non-empty)
-
-## Design Decisions Context
-Read: {design_decisions_file}
-
-When evaluating findings, apply these rules:
-- Behavior that MATCHES a documented decision → classify as `INFO` with prefix `DESIGN_DECISION -- `
-- Behavior that CONTRADICTS a documented decision → classify as WARNING or CRITICAL and note the contradiction explicitly
-- No relevant decision → evaluate independently as before
-
-## Source Files to Read (one absolute path per line)
-{source_file_list}
-
-## Communication Guidelines
-Your teammates and their roles:
-{teammate_roles}
-
-Only message teammates about CRITICAL findings that overlap with their analysis area. Write WARNING/INFO observations to your output file only.
-- If your skill's methodology finds a critical vulnerability related to state consistency, message the **State Consistency** auditor
-- If your skill's methodology finds a critical reentrancy or trust issue, message the **Reentrancy & Trust** auditor
-- If your skill's methodology finds a critical math/rounding issue, message the **Math & Rounding** auditor
-- Use the format: "COMPANION ({skill_name}): [finding summary] in [contract:line]. Relevant to your analysis because [reason]."
-
-## Output Format
-Write findings using our standard severity format:
-- **{CRITICAL|WARNING|INFO} -- {short title}**. Detailed explanation with line references.
-Include a summary table at the end: # | Severity | Finding | Location
-
-## Completion
-Write your COMPLETE analysis to {output_file} using the Write tool. Then mark your task as completed using the TaskUpdate tool. Do NOT return analysis text in your response — write it all to the file.
-```

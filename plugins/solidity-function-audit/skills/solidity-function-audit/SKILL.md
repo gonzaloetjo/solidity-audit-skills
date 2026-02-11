@@ -52,21 +52,22 @@ Display to the user:
 Build the list of all .sol source file paths (absolute paths) that agents will need to read. Format as one absolute path per line when substituting into `{source_file_list}` placeholders in agent prompts.
 
 ### 8. Detect Project Characteristics
-Scan source files for DeFi-relevant patterns to determine which companion skills are relevant:
+Scan source files for DeFi-relevant patterns to condition Stage 2/3 prompts:
 - **Token interfaces**: Grep for `ERC20`, `ERC721`, `ERC1155`, `ERC4626`, `IERC20`, `SafeERC20` → set `{has_tokens}` true/false
 - **Proxy/upgrade patterns**: Grep for `UUPSUpgradeable`, `TransparentProxy`, `Initializable` → set `{has_proxies}` true/false
 - **Oracle imports**: Grep for `AggregatorV3Interface`, `IOracle`, `TWAP` → set `{has_oracles}` true/false
 
-### 9. Detect Companion Skills
-Search for known companion skills from the Trail of Bits marketplace (`trailofbits/skills`):
-- Glob: `~/.claude/**/token-integration-analyzer/**/SKILL.md` → relevant if `{has_tokens}`
-- Glob: `~/.claude/**/guidelines-advisor/**/SKILL.md` → always relevant
-- Glob: `~/.claude/**/entry-point-analyzer/**/SKILL.md` → always relevant
-- Glob: `~/.claude/**/variant-analysis/**/SKILL.md` → always relevant
+---
 
-For each found, record its directory path. Store as `{companion_skills}` list (may be empty).
+## Context Compaction Guidance
 
-If any found, display: "Detected companion skills: {names}. These will run as additional Stage 3 agents."
+If auto-compaction occurs during this session, preserve these critical values:
+- `PROJECT_PATH` and all source file paths
+- Domain groupings with function lists
+- All output file absolute paths (stage0/, stage1/, stage2/, stage3/, review/)
+- All placeholder values: `{design_decisions_file}`, `{slither_file}`, `{template_file}`, `{example_file}`
+- Finding tallies per stage (CRITICAL/WARNING/INFO counts)
+- Current stage number and completion status of each stage
 
 ---
 
@@ -91,7 +92,7 @@ Present each category to the user following the confirmation script in REVIEW_PR
 
 ### Phase C — Write Output
 
-Write `docs/audit/function-audit/stage0/design-decisions.md` using the output format from REVIEW_PROMPTS.md. Store the absolute path as `{design_decisions_file}` for substitution into agent prompts in Stages 1-3.
+Write `docs/audit/function-audit/stage0/design-decisions.md` using the output format from REVIEW_PROMPTS.md. Store the absolute path as `{design_decisions_file}` for substitution into agent prompts in Stages 2-3.
 
 ### 8. Confirm with User
 
@@ -100,7 +101,6 @@ Display to the user:
 - Number of functions found
 - Domain groupings with function lists
 - Design decisions summary (categories and counts)
-- Companion skills detected (if any)
 - Ask for confirmation before proceeding to Stage 1
 
 ---
@@ -111,10 +111,10 @@ Run Slither static analysis if available. This is NOT an agent — the orchestra
 
 1. Run `which slither` via Bash
 2. If not found → display "Slither not detected. Install with `pip install slither-analyzer` for automated static analysis. Continuing without it." → set `{slither_file}` to empty → proceed to Stage 1
-3. If found → run `slither . --json /tmp/slither-output.json --exclude-informational --filter-paths "test|script|lib|node_modules" 2>/dev/null || true`
-4. Read `/tmp/slither-output.json` with the Read tool
-5. Map findings: High→CRITICAL, Medium→WARNING, Low→INFO
-6. Write formatted results to `docs/audit/function-audit/stage0/slither-findings.md`
+3. If found → run `slither . --json /tmp/slither-output.json --exclude-informational --filter-paths "test|script|lib|node_modules" 2>&1 || true`
+4. Check if `/tmp/slither-output.json` exists and is non-empty (use Bash: `test -s /tmp/slither-output.json`)
+5. If the file doesn't exist or is empty → display "Slither failed to analyze the project (likely a compilation or solc version issue). Continuing without it." → set `{slither_file}` to empty → proceed to Stage 1
+6. If the file exists → Read it, map findings (High→CRITICAL, Medium→WARNING, Low→INFO), write to `docs/audit/function-audit/stage0/slither-findings.md`
 7. Display summary: "Slither found N findings (C critical, W warnings, I info)"
 8. Store path as `{slither_file}` for agent prompts
 
@@ -122,13 +122,11 @@ Run Slither static analysis if available. This is NOT an agent — the orchestra
 
 ## Stage 1: Foundation Context (3 background agents)
 
-Launch 3 Task agents, ALL with `run_in_background: true` and `subagent_type: "general-purpose"`.
+Launch 3 Task agents, ALL with `run_in_background: true`, `subagent_type: "general-purpose"`, and `max_turns: 15`.
 
 Read the prompt templates from `resources/STAGE_PROMPTS.md` and fill in the placeholders:
 - `{output_file}` — the absolute path to the output markdown file
 - `{source_file_list}` — the collected source file paths
-- `{design_decisions_file}` — absolute path to `stage0/design-decisions.md` (if Stage 0 produced output)
-- `{slither_file}` — absolute path to `stage0/slither-findings.md` (empty string if Slither was not run)
 
 | Agent | Output File | Prompt Template |
 |-------|------------|-----------------|
@@ -141,13 +139,14 @@ After launching all 3:
 1. Use `TaskOutput(block: true, timeout: 300000)` on each agent to wait for completion (up to 5 minutes each)
 2. Each agent should return ONLY a short confirmation like "Written to {file} -- {N} items analyzed."
 3. Use Glob to verify all 3 files exist: `docs/audit/function-audit/stage1/*.md`
-4. Report Stage 1 completion to user before proceeding
+4. Quick-validate each output file: Read the first 5 and last 5 lines. Verify the file is non-empty and contains at least one markdown heading (`## `). If validation fails for any file, report the issue to the user and note the file as INCOMPLETE in synthesis.
+5. Report Stage 1 completion to user before proceeding
 
 ---
 
 ## Stage 2: Per-Domain Analysis (N background agents)
 
-Launch ONE Task agent per domain, ALL with `run_in_background: true` and `subagent_type: "general-purpose"`.
+Launch ONE Task agent per domain, ALL with `run_in_background: true`, `subagent_type: "general-purpose"`, and `max_turns: 25`.
 
 Read the Stage 2 prompt template from `resources/STAGE_PROMPTS.md` and fill in:
 - `{domain_name}` — the domain name
@@ -157,7 +156,7 @@ Read the Stage 2 prompt template from `resources/STAGE_PROMPTS.md` and fill in:
 - `{stage1_external_call_file}` — absolute path to stage1/external-call-map.md
 - `{design_decisions_file}` — absolute path to `stage0/design-decisions.md` (if Stage 0 produced output)
 - `{slither_file}` — absolute path to `stage0/slither-findings.md` (empty string if Slither was not run)
-- `{source_file_list}` — source files relevant to this domain
+- `{source_file_list}` — source files relevant to this domain: include files containing the domain's functions, files containing contracts called by those functions (from Stage 1c external call map), and files containing inherited contracts or imported libraries. Do NOT include all project source files — scope to what this domain needs.
 - `{function_list}` — the functions in this domain with their contract and line numbers
 - `{template_file}` — absolute path to `resources/FUNCTION_TEMPLATE.md`
 - `{example_file}` — absolute path to `resources/EXAMPLE_OUTPUT.md`
@@ -167,13 +166,14 @@ After launching all domain agents:
 1. Use `TaskOutput(block: true, timeout: 600000)` on each agent (up to 10 minutes each — Stage 2 is the heaviest)
 2. Each agent should return ONLY a short confirmation
 3. Use Glob to verify all domain files exist: `docs/audit/function-audit/stage2/*.md`
-4. Report Stage 2 completion to user with domain names and finding counts
+4. Quick-validate each output file: Read the first 5 and last 5 lines. Verify the file is non-empty, contains at least one `## ` heading, contains `## Summary of Findings` or `## Cross-Cutting Analysis`, and has at least one severity tag (`**CRITICAL -- ` or `**WARNING -- ` or `**INFO -- `). If validation fails, note the file as INCOMPLETE in synthesis.
+5. Report Stage 2 completion to user with domain names and finding counts
 
 ---
 
 ## Stage 3: Cross-Cutting Analysis (3 background agents)
 
-Launch 3 Task agents, ALL with `run_in_background: true` and `subagent_type: "general-purpose"`.
+Launch 3 Task agents, ALL with `run_in_background: true`, `subagent_type: "general-purpose"`, and `max_turns: 25`.
 
 Read the Stage 3 prompt templates from `resources/STAGE_PROMPTS.md` and fill in:
 - `{output_file}` — the absolute path to the output markdown file
@@ -189,26 +189,13 @@ Read the Stage 3 prompt templates from `resources/STAGE_PROMPTS.md` and fill in:
 | 3b: Math & Rounding | `docs/audit/function-audit/stage3/math-rounding.md` | Stage 3b from STAGE_PROMPTS.md |
 | 3c: Reentrancy & Trust | `docs/audit/function-audit/stage3/reentrancy-trust.md` | Stage 3c from STAGE_PROMPTS.md |
 
-### Companion Skill Agents (conditional)
-
-If `{companion_skills}` is non-empty, launch ONE additional Task agent per detected companion skill, ALL with `run_in_background: true` and `subagent_type: "general-purpose"`.
-
-Read the companion agent prompt template from `resources/STAGE_PROMPTS.md` and fill in:
-- `{skill_path}` — the directory containing the companion skill's SKILL.md
-- `{skill_name}` — the companion skill name (e.g., `token-integration-analyzer`)
-- `{output_file}` — `docs/audit/function-audit/stage3/companion-{skill-slug}.md`
-- `{stage1_file_list}` — all 3 stage 1 file paths
-- `{stage2_file_list}` — all stage 2 domain file paths
-- `{slither_file}` — absolute path to `stage0/slither-findings.md` (empty string if Slither was not run)
-- `{design_decisions_file}` — absolute path to `stage0/design-decisions.md`
-- `{source_file_list}` — all source file paths
-
 ### Completion Check
-After launching all agents (3 core + M companion):
+After launching all 3:
 1. Use `TaskOutput(block: true, timeout: 600000)` on each agent (up to 10 minutes each — Stage 3 reads the most material)
 2. Each agent should return ONLY a short confirmation
 3. Use Glob to verify all files exist: `docs/audit/function-audit/stage3/*.md`
-4. Report Stage 3 completion to user (including companion skill results if any)
+4. Quick-validate each output file: Read the first 5 and last 5 lines. Verify the file is non-empty, contains at least one `## ` heading, and has at least one severity tag (`**CRITICAL -- ` or `**WARNING -- ` or `**INFO -- `). If validation fails, note the file as INCOMPLETE in synthesis.
+5. Report Stage 3 completion to user
 
 ---
 
@@ -326,8 +313,9 @@ If DISPUTED or DISCUSS items exist:
    - `{review_responses_file}` — absolute path to `review/review-responses.md`
    - `{source_file_list}` — all source file paths
    - `{disputed_findings}` — the full text of each DISPUTED/DISCUSS finding with developer reasoning
-3. Launch ONE Task agent with `run_in_background: true` and `subagent_type: "general-purpose"`
+3. Launch ONE Task agent with `run_in_background: true`, `subagent_type: "general-purpose"`, and `max_turns: 15`
 4. Wait with `TaskOutput(block: true, timeout: 600000)`
+5. Quick-validate the re-evaluation output: Read the first 5 and last 5 lines of `review/re-evaluation.md`. Verify it is non-empty and contains at least one `## ` heading. If validation fails, report the issue to the user.
 
 ### Final Synthesis Update
 

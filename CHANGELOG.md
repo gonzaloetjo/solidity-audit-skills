@@ -1,18 +1,30 @@
 # Changelog
 
-## [1.3.0] - 2026-02-09
+## [1.4.0] - 2026-02-11
 
 ### Added
-- **Slither integration** (both variants): Runs Slither static analysis (if installed) between Stage 0 and Stage 1. Maps findings to CRITICAL/WARNING/INFO, writes to `stage0/slither-findings.md`. All agents cross-reference their manual analysis with Slither's automated detections.
-- **Companion skill agents** (both variants): Detects installed companion skills from Trail of Bits' marketplace (`token-integration-analyzer`, `guidelines-advisor`, `entry-point-analyzer`, `variant-analysis`). Spawns additional Stage 3 agents that apply each skill's methodology to the target contracts.
-- **DeFi pattern detection** in Stage 0 (both variants): New extraction categories for Oracle Strategy, Token Standard, DeFi Integration, MEV Awareness, and Value Flow.
-- **Project characteristic detection** in pre-flight (both variants): Scans source files for token interfaces, proxy/upgrade patterns, and oracle imports to determine companion skill relevance.
-- **Companion agent prompt template** in STAGE_PROMPTS.md (both variants): Standard prompt for companion skill agents with design decisions context and severity format.
-- **Slither cross-reference block** in STAGE_PROMPTS.md (both variants): Included in all agent prompts when Slither findings are available.
+- **Output validation hooks** (both variants): New `hooks/hooks.json` and `hooks/validate-output.sh` per plugin. Solo uses `SubagentStop` hook; team uses `TaskCompleted` hook. Validates agent output files are non-empty, contain markdown headings, and have required sections/severity tags for Stage 2 and Stage 3. Exit code 2 blocks completion and feeds error to the agent.
+- **Context compaction guidance** (both variants): New section in SKILL.md instructing the orchestrator to preserve critical values (paths, domain groupings, placeholders, stage status) if auto-compaction occurs during long sessions.
+- **Post-completion content verification** (both variants): After each stage's file existence check, the orchestrator reads the first/last 5 lines of each output file to verify structure. Malformed files are noted as INCOMPLETE in synthesis.
 
 ### Changed
-- **SKILL.md** (both variants): Pre-flight now includes project characteristic detection (step 8) and companion skill detection (step 9). New Slither integration section between Stage 0 and Stage 1. Stage 3 conditionally spawns companion skill agents alongside the existing 3a/3b/3c agents.
-- **SKILL.md** (both): All stage placeholder lists now include `{slither_file}`.
+- **SKILL.md** (both): Added `max_turns` caps to all agent spawn instructions — Stage 1/5: 15 turns, Stage 2/3: 25 turns. Prevents stuck agents from burning context until timeout.
+- **SKILL.md** (both): Stage 2 `{source_file_list}` placeholder now scoped to domain-relevant files only (domain contracts, externally called contracts, inherited contracts/libraries) instead of all project source files.
+- **SKILL.md** (both): Removed `{design_decisions_file}` from Stage 1 placeholder list — Stage 1 prompts don't use it. Clarified it's only distributed to Stage 2 and Stage 3 agents.
+- **STAGE_PROMPTS.md** (both): Stage 2 source file instruction now clarifies files are domain-scoped and agents should read additional imports/inheritance as needed.
+
+## [1.3.0] - 2026-02-10
+
+### Added
+- **Slither integration** (both variants): Runs Slither static analysis (if installed) between Stage 0 and Stage 1. Maps findings to CRITICAL/WARNING/INFO, writes to `stage0/slither-findings.md`. Stage 2 and Stage 3 agents cross-reference their manual analysis with Slither's automated detections.
+- **DeFi pattern detection** in Stage 0 (both variants): New extraction categories for Oracle Strategy, Token Standard, DeFi Integration, MEV Awareness, and Value Flow.
+- **Project characteristic detection** in pre-flight (both variants): Scans source files for token interfaces, proxy/upgrade patterns, and oracle imports to condition Stage 2/3 prompts.
+- **Token integration checklist** in Stage 2 prompt (both variants): When the project imports token interfaces, Stage 2 agents check for fee-on-transfer, rebasing, no-return-value (USDT), pausable/blocklist, permit race conditions, and ERC777 hook reentrancy.
+- **Slither cross-reference block** in STAGE_PROMPTS.md (both variants): Included in Stage 2 and Stage 3 agent prompts when Slither findings are available.
+
+### Changed
+- **SKILL.md** (both variants): Pre-flight now includes project characteristic detection (step 8). New Slither integration section between Stage 0 and Stage 1 with proper error handling (checks for output file existence before reading).
+- **SKILL.md** (both): Stage 2 and Stage 3 placeholder lists include `{slither_file}`. Stage 1 does not (structural mapping doesn't need finding-level cross-reference).
 - **REVIEW_PROMPTS.md** (both): Stage 0 pattern detection table extended with 5 DeFi-related categories.
 
 ## [1.2.0] - 2026-02-09

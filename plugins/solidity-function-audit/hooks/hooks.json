@@ -1,0 +1,17 @@
+{
+  "description": "Output validation for solidity-function-audit agents",
+  "hooks": {
+    "SubagentStop": [
+      {
+        "matcher": "general-purpose",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/validate-output.sh\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}
