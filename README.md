@@ -128,28 +128,87 @@ The **solo variant** (`/solidity-function-audit`) is lighter-weight:
 
 ## Installation
 
-From your terminal:
+Add the marketplace and install the plugin you want:
 
 ```bash
-# Add the marketplace
 claude plugin marketplace add gonzaloetjo/solidity-audit-skills
+```
 
-# Install a plugin
-claude plugin install solidity-function-audit@solidity-audit-skills
-# or
+**Team variant** (recommended) — agents communicate cross-domain findings, shared task list with dependency tracking:
+
+```bash
 claude plugin install solidity-function-audit-team@solidity-audit-skills
 ```
 
-Or from inside a Claude Code session:
+Requires `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in your environment or `.claude/settings.json`.
+
+**Solo variant** — lighter-weight, agents run independently in the background:
+
+```bash
+claude plugin install solidity-function-audit@solidity-audit-skills
+```
+
+Both require a Foundry project layout (`src/**/*.sol`).
+
+## Usage
+
+Start Claude Code in your Foundry project directory:
+
+```bash
+cd your-project
+claude
+```
+
+Then run the skill:
 
 ```
-/plugin marketplace add gonzaloetjo/solidity-audit-skills
-/plugin install solidity-function-audit-team@solidity-audit-skills
+/solidity-function-audit
+# or
+/solidity-function-audit-team
 ```
 
-Then start a session in your Foundry project and run `/solidity-function-audit` or `/solidity-function-audit-team`.
+You can also pass a path to a specific project:
 
-Requires a Foundry project layout (`src/**/*.sol`). The team variant requires `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`.
+```
+/solidity-function-audit /path/to/your/foundry/project
+```
+
+The skill will:
+
+1. **Discover contracts** — scans `src/**/*.sol` for contracts, libraries, and functions
+2. **Group into domains** — presents domain groupings for your confirmation
+3. **Capture design decisions** — asks about intentional trade-offs (Stage 0)
+4. **Run Slither** — if installed, runs static analysis automatically
+5. **Launch parallel agents** — Stages 1-3 run concurrently, writing to `docs/audit/function-audit/`
+6. **Present findings** — shows severity breakdown and asks to proceed to review
+7. **Interactive review** — you classify each finding as BUG, DESIGN, DISPUTED, or DISCUSS (Stage 4)
+8. **Re-evaluate disputes** — if any DISPUTED/DISCUSS items, an agent re-analyzes with your reasoning (Stage 5)
+
+Output lands in `docs/audit/function-audit/`:
+
+```
+docs/audit/function-audit/
+├── INDEX.md                    # Links to all files with finding counts
+├── SUMMARY.md                  # Executive summary + action items
+├── stage0/
+│   ├── design-decisions.md     # Confirmed design intent
+│   └── slither-findings.md     # Slither output (if available)
+├── stage1/
+│   ├── state-variables.md      # Storage variable map
+│   ├── access-control.md       # Access control surface
+│   └── external-calls.md       # External call map
+├── stage2/
+│   ├── domain-staking.md       # Per-function analysis (one file per domain)
+│   ├── domain-rewards.md
+│   └── ...
+├── stage3/
+│   ├── state-consistency.md    # Cross-domain state audit
+│   ├── math-rounding.md        # Arithmetic + precision audit
+│   └── reentrancy-trust.md     # Reentrancy + trust boundaries
+└── review/
+    ├── review-responses.md     # Your classifications
+    └── re-evaluation.md        # Dispute re-analysis (if needed)
+```
 
 ## License
 
