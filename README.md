@@ -118,24 +118,36 @@ Both variants run the same 6-stage pipeline (Stage 0 → 1 → 2 → 3 → 4 →
 
 The **team variant** (`/solidity-function-audit-team`) gives you control over the analysis pipeline:
 - Agents self-schedule from a shared task list with dependency tracking
-- Stage 2 agents draft analysis plans in read-only mode — you approve before they execute
+- Stage 2 agents share their analysis plan with the lead before executing
 - Agents message each other about cross-domain findings (CRITICAL only)
 - Requires `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`
 
 The **solo variant** (`/solidity-function-audit`) is lighter-weight:
 - Agents run in the background and write results directly
-- No plan approval or inter-agent messaging
+- No inter-agent messaging
 
 ## Installation
 
+From your terminal:
+
 ```bash
 # Add the marketplace
-/plugin marketplace add gonzaloetjo/solidity-audit-skills
+claude plugin marketplace add gonzaloetjo/solidity-audit-skills
 
-# Install individual plugins
-/plugin install solidity-function-audit@solidity-audit-skills
+# Install a plugin
+claude plugin install solidity-function-audit@solidity-audit-skills
+# or
+claude plugin install solidity-function-audit-team@solidity-audit-skills
+```
+
+Or from inside a Claude Code session:
+
+```
+/plugin marketplace add gonzaloetjo/solidity-audit-skills
 /plugin install solidity-function-audit-team@solidity-audit-skills
 ```
+
+Then start a session in your Foundry project and run `/solidity-function-audit` or `/solidity-function-audit-team`.
 
 Requires a Foundry project layout (`src/**/*.sol`). The team variant requires `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`.
 
