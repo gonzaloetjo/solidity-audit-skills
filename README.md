@@ -210,6 +210,120 @@ docs/audit/function-audit/
     └── re-evaluation.md        # Dispute re-analysis (if needed)
 ```
 
+## Monitoring a Team Audit
+
+The team variant runs multiple agents from a shared task list at `~/.claude/tasks/`. You can watch progress in real time with [claude-code-kanban](https://github.com/L1AD/claude-task-viewer) — a zero-config Kanban board that shows pending/in-progress/completed tasks, agent assignments, and dependency chains.
+
+**Terminal 1 — Kanban board:**
+
+```bash
+npx claude-code-kanban
+# Opens http://localhost:3456 in your browser
+```
+
+**Terminal 2 — Run the audit:**
+
+```bash
+export CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
+cd your-project
+claude
+```
+
+Then inside Claude: `/solidity-function-audit-team`
+
+The env var is only needed in the terminal running Claude. To make it permanent:
+
+```bash
+echo 'export CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1' >> ~/.bashrc
+source ~/.bashrc
+```
+
+The Kanban board will show Stage 1 tasks completing, Stage 2 domain audits unblocking and getting picked up by teammates, and Stage 3 cross-cutting tasks waiting on Stage 2. No configuration needed — it watches the filesystem directly.
+
+**Keyboard shortcuts** in the Claude terminal for live teammate control:
+
+| Key | Action |
+|-----|--------|
+| `Shift+Up/Down` | Select teammate |
+| `Enter` | View teammate session |
+| `Escape` | Interrupt teammate |
+| `Ctrl+T` | Toggle task list overlay |
+
+### Deep observability with hooks
+
+For full visibility into what agents are actually doing — every tool call, file write, and message between teammates — see [claude-code-hooks-multi-agent-observability](https://github.com/disler/claude-code-hooks-multi-agent-observability). It captures 12 hook events and renders them as a real-time Vue dashboard with agent swim lanes and event timeline.
+
+> **Security notice**: We audited this tool ([audit notes](https://github.com/disler/claude-code-hooks-multi-agent-observability)). There is no malware or data exfiltration in the default config, and its hooks won't conflict with this plugin's validation hooks (they run in parallel at different levels). However, **the server binds to `0.0.0.0` with wildcard CORS and no auth** — meaning anyone on your LAN can read all captured events, including source code. The `--summarize` flag also sends truncated event payloads to Anthropic's API for one-line summaries. Apply the fixes below before using it with proprietary code.
+
+<details>
+<summary>Setup and required security fixes</summary>
+
+**Install** (clone it anywhere, it lives outside your project):
+
+```bash
+git clone https://github.com/disler/claude-code-hooks-multi-agent-observability
+cd claude-code-hooks-multi-agent-observability
+bun install        # needs Bun and uv (astral.sh) installed
+```
+
+**Required fixes before first use:**
+
+1. Bind server to localhost only — edit `apps/server/src/index.ts`:
+
+```typescript
+// find Bun.serve({ ... }) and add hostname:
+const server = Bun.serve({
+  hostname: 'localhost',   // ADD THIS — default is 0.0.0.0
+  port: parseInt(process.env.SERVER_PORT || '4000'),
+  // ...
+});
+```
+
+2. Restrict CORS — in the same file, replace `'*'` with the client origin:
+
+```typescript
+'Access-Control-Allow-Origin': 'http://localhost:5173',  // was '*'
+```
+
+3. Disable API summarization — in the `.claude/settings.json` you'll copy to your project, remove `--summarize` from all `send_event.py` commands to prevent truncated payloads being sent to Anthropic's API:
+
+```bash
+sed -i 's/ --summarize//g' .claude/settings.json
+```
+
+**Copy hooks into your Foundry project:**
+
+```bash
+cp -R .claude /path/to/your-foundry-project/
+```
+
+Edit the `source-app` value in the copied `settings.json`:
+
+```bash
+cd /path/to/your-foundry-project
+sed -i 's/cc-hook-multi-agent-obvs/my-vault-audit/g' .claude/settings.json
+```
+
+**Run it** (three terminals):
+
+```bash
+# Terminal 1 — observability server + dashboard
+cd claude-code-hooks-multi-agent-observability
+./scripts/start-system.sh
+# Server on :4000, dashboard on http://localhost:5173
+
+# Terminal 2 — (optional) Kanban board for task state
+npx claude-code-kanban
+
+# Terminal 3 — run the audit
+export CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
+cd your-foundry-project
+claude
+# then: /solidity-function-audit-team
+```
+
+</details>
+
 ## License
 
 MIT
