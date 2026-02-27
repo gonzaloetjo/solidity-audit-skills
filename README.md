@@ -54,7 +54,7 @@ Each function gets a standalone analysis block. Here's a trimmed example from a 
 | 0.5 Slither | Static analysis (if installed) | Orchestrator | `stage0/slither-findings.md` |
 | 1. Foundation | Map state variables, access control, external calls | Agents (parallel) | `stage1/` |
 | 2. Domain audit | Per-function analysis grouped by domain | Agents (parallel) | `stage2/domain-*.md` |
-| 3. Cross-cutting | Reentrancy paths, state consistency, math/rounding | Agents (parallel) | `stage3/` |
+| 3. Cross-cutting | Reentrancy paths, state consistency, math/rounding, adversarial sequencing | Agents (parallel) | `stage3/` |
 | 4. Human review | Classify findings: BUG, DESIGN, DISPUTED, DISCUSS | Interactive | `review/` |
 | 5. Re-evaluation | Re-analyze disputed findings with developer context | Agent (conditional) | `review/` |
 
@@ -84,11 +84,11 @@ Each function gets a standalone analysis block. Here's a trimmed example from a 
                           │
               ┌───────────┼───────────┐
               ▼           ▼           ▼
-  Stage 3  ┌───────┐ ┌────────┐ ┌──────────┐
-  3 agents │ State │ │ Math & │ │Reentrancy│
-           │Consist│ │Rounding│ │ & Trust  │
-           └──┬────┘ └───┬────┘ └────┬─────┘
-              └───────────┼──────────┘
+  Stage 3  ┌───────┐ ┌────────┐ ┌──────────┐ ┌────────────┐
+  4 agents │ State │ │ Math & │ │Reentrancy│ │ Adversarial│
+           │Consist│ │Rounding│ │ & Trust  │ │ Sequences  │
+           └──┬────┘ └───┬────┘ └────┬─────┘ └──────┬─────┘
+              └───────────┼──────────┴──────────────┘
                           │
   Synthesis    ┌──────────┴──────────┐
                │ INDEX.md + SUMMARY  │
@@ -126,7 +126,7 @@ The **solo variant** (`/solidity-function-audit`) is lighter-weight:
 - Agents run in the background and write results directly
 - No inter-agent messaging
 
-## Installation
+## Installation (Claude)
 
 Add the marketplace and install the plugin you want:
 
@@ -149,6 +149,38 @@ claude plugin install solidity-function-audit@solidity-audit-skills
 ```
 
 Both require a Foundry project layout (`src/**/*.sol`).
+
+## Installation (Codex)
+
+This repo also ships a Codex skill release at:
+
+- `codex/skills/solidity-function-audit/`
+
+To install locally in Codex, copy or symlink that folder into your Codex skills directory, then invoke it as `$solidity-function-audit`.
+
+Codex release metadata is in:
+
+- `codex/skills/solidity-function-audit/agents/openai.yaml`
+
+## Dual Release Workflow
+
+Use independent tags for each platform release track:
+
+- `claude-vX.Y.Z`
+- `codex-vX.Y.Z`
+
+Shared resources are maintained from:
+
+- `shared/solidity-function-audit/resources/`
+
+Sync and verify before either release:
+
+```bash
+scripts/sync_shared_resources.sh
+scripts/sync_shared_resources.sh --check
+```
+
+Detailed checklist: `docs/DUAL_RELEASES.md`
 
 ## Usage
 
@@ -204,7 +236,8 @@ docs/audit/function-audit/
 ├── stage3/
 │   ├── state-consistency.md    # Cross-domain state audit
 │   ├── math-rounding.md        # Arithmetic + precision audit
-│   └── reentrancy-trust.md     # Reentrancy + trust boundaries
+│   ├── reentrancy-trust.md     # Reentrancy + trust boundaries
+│   └── adversarial-sequences.md # Cross-contract exploit sequence modeling
 └── review/
     ├── review-responses.md     # Your classifications
     └── re-evaluation.md        # Dispute re-analysis (if needed)

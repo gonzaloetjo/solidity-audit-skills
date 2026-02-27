@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.5.1] - 2026-02-13
+
+### Added
+- **Codex skill release scaffold**: Added `codex/skills/solidity-function-audit/` with a Codex-native `SKILL.md`, `agents/openai.yaml`, and reusable `resources/` files for the same staged audit methodology.
+- **Dual release documentation**: Added `docs/DUAL_RELEASES.md` describing directory contract, independent tag tracks (`claude-v*`, `codex-v*`), and platform-specific release checklists.
+- **Shared resource canonicalization**: Added `shared/solidity-function-audit/resources/` as source-of-truth plus `scripts/sync_shared_resources.sh` to sync/check resource copies across Claude and Codex release folders.
+- **Stage 3d adversarial sequencing** (Claude + Codex): Added a dedicated cross-contract, multi-transaction exploit-sequence analysis prompt and output file (`stage3/adversarial-sequences.md`) to explicitly model attacker ordering and state-delta traces.
+
+### Changed
+- **README.md**: Added Codex installation path and dual-release workflow reference while preserving the existing Claude plugin installation flow.
+
 ## [1.5.0] - 2026-02-11
 
 ### Added

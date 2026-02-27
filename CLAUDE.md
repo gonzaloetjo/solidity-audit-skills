@@ -23,6 +23,22 @@ plugins/
           REVIEW_PROMPTS.md                #   Stage 0/4/5 prompt templates
           FUNCTION_TEMPLATE.md             #   Per-function analysis template
           EXAMPLE_OUTPUT.md                #   Quality/format reference
+codex/
+  skills/
+    {skill-name}/
+      SKILL.md                             # Codex skill entrypoint
+      agents/openai.yaml                   # Codex agent descriptor
+      resources/                           # Synced from shared/
+shared/
+  {skill-name}/
+    resources/
+      common/                              # FUNCTION_TEMPLATE, EXAMPLE_OUTPUT, REVIEW_PROMPTS
+      solo/STAGE_PROMPTS.md                # Solo variant prompts
+      team/STAGE_PROMPTS.md                # Team variant prompts
+scripts/
+  sync_shared_resources.sh                 # Sync shared/ → plugin + codex resources
+docs/
+  DUAL_RELEASES.md                         # Release guide for Claude + Codex
 README.md
 CHANGELOG.md
 LICENSE
@@ -91,6 +107,10 @@ Both use semver (MAJOR.MINOR.PATCH). Optional fields available in the spec: `aut
 
 **Testing locally**: `claude --plugin-dir ./plugins/{name}` loads a single plugin for testing. Validate structure with `claude plugin validate .`.
 
+**Editing shared resources**: Edit files in `shared/`, then run `scripts/sync_shared_resources.sh` to propagate changes to plugins and Codex. Verify with `scripts/sync_shared_resources.sh --check`.
+
+**Releasing**: Follow the `docs/DUAL_RELEASES.md` checklist. Use `claude-vX.Y.Z` / `codex-vX.Y.Z` tags for platform-specific releases.
+
 ### Conventions
 
 - File naming: manifests lowercase (`plugin.json`), skill entrypoint UPPERCASE (`SKILL.md`), resources SCREAMING_SNAKE_CASE (`STAGE_PROMPTS.md`)
@@ -105,7 +125,7 @@ Both use semver (MAJOR.MINOR.PATCH). Optional fields available in the spec: `aut
 
 ## DYNAMIC — Current State and Evolution
 
-<!-- Last reviewed: 2026-02-11 -->
+<!-- Last reviewed: 2026-02-27 -->
 
 ### Current Inventory
 
@@ -113,10 +133,11 @@ Both use semver (MAJOR.MINOR.PATCH). Optional fields available in the spec: `aut
 |--------|---------|---------------|
 | solidity-function-audit | Solo (background agents) | `Task` + `run_in_background` + `TaskOutput` polling |
 | solidity-function-audit-team | Agent team | `TeamCreate` + `SendMessage` + shared task list with `blockedBy` dependencies |
+| solidity-function-audit | Codex | Shell-native single-agent workflow via `codex/skills/` |
 
 Both variants run the same 6-stage pipeline (Stage 0 → Slither → 1 → 2 → 3 → 4 → 5). Stages 0, 4, 5 are orchestrator-interactive and identical across variants. Slither integration is identical. Only Stages 1-3 differ (solo uses background agents, team uses agent teams).
 
-FUNCTION_TEMPLATE.md, EXAMPLE_OUTPUT.md, and REVIEW_PROMPTS.md are byte-identical across both plugins. STAGE_PROMPTS.md differs only by Communication Guidelines sections in the team variant. Both hooks directories contain `hooks.json` + `validate-output.sh` (different hook events but same validation logic).
+FUNCTION_TEMPLATE.md, EXAMPLE_OUTPUT.md, and REVIEW_PROMPTS.md are canonical in `shared/` and synced to plugins and Codex via `scripts/sync_shared_resources.sh`. STAGE_PROMPTS.md has solo and team variants in `shared/` (differs by Communication Guidelines sections). Both hooks directories contain `hooks.json` + `validate-output.sh` (different hook events but same validation logic).
 
 ### Claude Code Features In Use
 
@@ -160,7 +181,7 @@ Docs: https://code.claude.com/docs/en/hooks
 
 - **Agent teams is experimental**: no session resumption with in-process teammates, shutdown can be slow, one team per session, uses significantly more tokens
 - **Context compaction destroys team state**: long sessions may trigger auto-compaction that drops task IDs, domain groupings, or file paths. Mitigated by compaction guidance in SKILL.md but not eliminated. See [#23620](https://github.com/anthropics/claude-code/issues/23620)
-- **Resource file duplication**: FUNCTION_TEMPLATE.md and EXAMPLE_OUTPUT.md are copied identically across plugins; plugins cannot reference files outside their directory (by design — plugins are cached on install)
+- **Resource file duplication**: FUNCTION_TEMPLATE.md and EXAMPLE_OUTPUT.md are synced from `shared/` via `scripts/sync_shared_resources.sh`; runtime duplication still exists by design (plugins are cached on install), but development-time drift is prevented by the sync script
 - **Timeout tuning**: Stage 2 timeout (10 min) may be insufficient for large projects with many domains; max allowed is 600000ms
 - **Manual domain grouping**: the 4-10 domain / 3-15 function heuristic requires user confirmation and may need adjustment per project
 

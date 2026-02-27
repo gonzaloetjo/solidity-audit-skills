@@ -4,6 +4,8 @@
 **Scope**: solidity-function-audit (solo) and solidity-function-audit-team (team) plugins
 **Purpose**: Map our agent architecture against Claude Code best practices, quantify token costs, and identify improvement levers.
 
+> **Historical note (v1.5.1)**: This document reflects the v1.4.0 agent counts (3 Stage 3 agents: state consistency, math & rounding, reentrancy). v1.5.1 added a 4th Stage 3 agent for adversarial sequence modeling. All token estimates and cost figures below use the original 3-agent Stage 3 counts.
+
 ---
 
 ## Part 1: Claude Code Agent Best Practices (Reference Baseline)

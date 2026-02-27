@@ -1,0 +1,7 @@
+interface:
+  display_name: "Solidity Function Audit"
+  short_description: "Run a staged per-function Solidity security audit"
+  default_prompt: "Use $solidity-function-audit to audit this Foundry project and write findings to docs/audit/function-audit/."
+
+policy:
+  allow_implicit_invocation: true

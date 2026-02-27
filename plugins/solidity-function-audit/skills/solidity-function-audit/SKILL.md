@@ -179,9 +179,9 @@ After launching all domain agents:
 
 ---
 
-## Stage 3: Cross-Cutting Analysis (3 background agents)
+## Stage 3: Cross-Cutting Analysis (4 background agents)
 
-Launch 3 Task agents, ALL with `run_in_background: true`, `subagent_type: "general-purpose"`, and `max_turns: 25`.
+Launch 4 Task agents, ALL with `run_in_background: true`, `subagent_type: "general-purpose"`, and `max_turns: 25`.
 
 Read the Stage 3 prompt templates from `resources/STAGE_PROMPTS.md` and fill in:
 - `{output_file}` — the absolute path to the output markdown file
@@ -196,9 +196,10 @@ Read the Stage 3 prompt templates from `resources/STAGE_PROMPTS.md` and fill in:
 | 3a: State Consistency | `docs/audit/function-audit/stage3/state-consistency.md` | Stage 3a from STAGE_PROMPTS.md |
 | 3b: Math & Rounding | `docs/audit/function-audit/stage3/math-rounding.md` | Stage 3b from STAGE_PROMPTS.md |
 | 3c: Reentrancy & Trust | `docs/audit/function-audit/stage3/reentrancy-trust.md` | Stage 3c from STAGE_PROMPTS.md |
+| 3d: Adversarial Sequences | `docs/audit/function-audit/stage3/adversarial-sequences.md` | Stage 3d from STAGE_PROMPTS.md |
 
 ### Completion Check
-After launching all 3:
+After launching all 4:
 1. Use `TaskOutput(block: true, timeout: 600000)` on each agent (up to 10 minutes each — Stage 3 reads the most material)
 2. Each agent should return ONLY a short confirmation
 3. Use Glob to verify all files exist: `docs/audit/function-audit/stage3/*.md`
@@ -270,6 +271,7 @@ Write `docs/audit/function-audit/INDEX.md` containing:
 | File | Focus | Findings |
 |------|-------|----------|
 | [state-consistency.md](stage3/state-consistency.md) | Accounting invariants, divergent tracking | {C}C / {H}H / {M}M / {L}L / {I}I |
+| [adversarial-sequences.md](stage3/adversarial-sequences.md) | Cross-contract exploit sequencing and attacker flows | {C}C / {H}H / {M}M / {L}L / {I}I |
 | ... | ... | ... |
 
 ## All Findings

@@ -135,6 +135,7 @@ Stage 3 (blocked by all Stage 2 tasks):
   T(4+N): State Consistency         | blockedBy: [T4 .. T(3+N)]
   T(5+N): Math & Rounding           | blockedBy: [T4 .. T(3+N)]
   T(6+N): Reentrancy & Trust        | blockedBy: [T4 .. T(3+N)]
+  T(7+N): Adversarial Sequences     | blockedBy: [T4 .. T(3+N)]
 ```
 
 ---
@@ -194,14 +195,16 @@ Stage 3 (not started yet):
 - state-consistency: State Consistency Audit
 - math-rounding: Math & Rounding Audit
 - reentrancy-trust: Reentrancy & Trust Boundaries Audit
+- adversarial-sequences: Adversarial Sequence Modeling Audit
 ```
 
 **Stage 3 tasks** (blocked by ALL Stage 2 tasks):
 
-Call `TaskCreate` 3 times:
+Call `TaskCreate` 4 times:
 - `TaskCreate(subject: "State Consistency Audit", description: "<filled Stage 3a prompt>", activeForm: "Auditing state consistency")`
 - `TaskCreate(subject: "Math & Rounding Audit", description: "<filled Stage 3b prompt>", activeForm: "Auditing math and rounding")`
 - `TaskCreate(subject: "Reentrancy & Trust Audit", description: "<filled Stage 3c prompt>", activeForm: "Auditing reentrancy and trust")`
+- `TaskCreate(subject: "Adversarial Sequence Modeling Audit", description: "<filled Stage 3d prompt>", activeForm: "Modeling adversarial sequences")`
 
 Then call `TaskUpdate` to set dependencies on ALL Stage 2 task IDs:
 - `TaskUpdate(taskId: "{stage3_task_id}", addBlockedBy: ["{T4_id}", "{T5_id}", ..., "{T3+N_id}"])`
@@ -211,6 +214,7 @@ For `{teammate_roles}` in Stage 3 prompts:
 - state-consistency: State Consistency — analyzing accounting invariants, divergent tracking, stale state, transition completeness
 - math-rounding: Math & Rounding — analyzing overflow, rounding direction, precision loss, exchange rate manipulation, fee arithmetic
 - reentrancy-trust: Reentrancy & Trust — analyzing CEI compliance, delegatecall safety, trust boundaries, external dependencies, callback vectors
+- adversarial-sequences: Adversarial Sequences — modeling cross-contract attacker flows, multi-transaction exploit ordering, state delta traces, and violated invariants
 ```
 
 ### Step 3: Spawn teammates using Task tool with team_name
@@ -253,11 +257,12 @@ Task(subagent_type: "general-purpose", name: "domain-{slug}", team_name: "functi
 ```
 Note: Stage 2 teammates send their analysis plan as a message to the lead before executing (see STAGE_PROMPTS.md). This is informational — teammates proceed without waiting for approval.
 
-**Stage 3 teammates** (3):
+**Stage 3 teammates** (4):
 ```
 Task(subagent_type: "general-purpose", name: "state-consistency", team_name: "function-audit", prompt: "You are **state-consistency**, a Solidity security auditor specializing in **cross-domain state consistency** — accounting invariants, divergent tracking, stale state, transition completeness.\n\n<shared operational block>", mode: "bypassPermissions", max_turns: 25)
 Task(subagent_type: "general-purpose", name: "math-rounding", team_name: "function-audit", prompt: "You are **math-rounding**, a Solidity security auditor specializing in **mathematical analysis** — overflow, rounding, precision loss, exchange rate manipulation, fee arithmetic.\n\n<shared operational block>", mode: "bypassPermissions", max_turns: 25)
 Task(subagent_type: "general-purpose", name: "reentrancy-trust", team_name: "function-audit", prompt: "You are **reentrancy-trust**, a Solidity security auditor specializing in **reentrancy and trust boundary analysis** — CEI compliance, delegatecall safety, trust boundaries, callback vectors.\n\n<shared operational block>", mode: "bypassPermissions", max_turns: 25)
+Task(subagent_type: "general-purpose", name: "adversarial-sequences", team_name: "function-audit", prompt: "You are **adversarial-sequences**, a Solidity security auditor specializing in **end-to-end exploit sequencing** — cross-contract attacker paths, multi-transaction ordering, and invariant-breaking state transition traces.\n\n<shared operational block>", mode: "bypassPermissions", max_turns: 25)
 ```
 
 Spawn ALL teammates at once (all stages). Teammates blocked by dependencies will wait automatically — the task list handles stage ordering.
@@ -285,7 +290,7 @@ After spawning all teammates:
 ### Concurrency
 - Stage 1: 3 teammates active simultaneously (tasks have no blockedBy)
 - Stage 2: All N domain teammates active simultaneously (tasks unblock together when Stage 1 completes)
-- Stage 3: 3 teammates active simultaneously (tasks unblock together when Stage 2 completes)
+- Stage 3: 4 teammates active simultaneously (tasks unblock together when Stage 2 completes)
 
 ---
 
@@ -386,7 +391,7 @@ Update `SUMMARY.md` with a "Human Review" section (classification table + before
 ## Notes
 
 - **Agent teams**: Requires `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in environment.
-- **Teammate count**: Spawn at least N teammates where N = max(3, number of domains). Stage 1 uses 3, Stage 2 uses N, Stage 3 uses 3. Teammates self-schedule via the task list.
+- **Teammate count**: Spawn at least N teammates where N = max(3, number of domains). Stage 1 uses 3, Stage 2 uses N, Stage 3 uses 4. Teammates self-schedule via the task list.
 - **Stage 2 planning**: Stage 2 teammates design and share their analysis plan via messaging before executing. This is prompt-enforced (not permission-enforced) to avoid deadlocks with the plan approval protocol.
 - **File paths**: Always use absolute paths in task descriptions so teammates can Read files without ambiguity.
 - **Error handling**: If a teammate fails or a task gets stuck, the lead should investigate via TaskList and reassign if needed. In synthesis, note missing files in INDEX.md with status `INCOMPLETE — agent failed` and proceed using available outputs.
