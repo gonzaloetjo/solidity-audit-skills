@@ -68,7 +68,8 @@ json_str() {
 # Collect grade.json files
 # ---------------------------------------------------------------------------
 
-declare -a GRADE_FILES FIXTURE_NAMES
+GRADE_FILES=()
+declare -a FIXTURE_NAMES
 declare -A FIX_SEEN
 
 if [[ $TRIALS -gt 0 ]]; then

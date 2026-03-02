@@ -113,7 +113,7 @@ run_trial() {
 
   # Install forge-std
   echo "  Installing forge-std..."
-  (cd "$tmp_dir" && git init -q && forge install foundry-rs/forge-std --no-git --no-commit 2>/dev/null) || {
+  (cd "$tmp_dir" && git init -q && forge install foundry-rs/forge-std --no-git 2>/dev/null) || {
     echo "  Warning: forge install failed, continuing anyway" >&2
   }
 
@@ -131,13 +131,14 @@ run_trial() {
 
   local stream_file="$tmp_dir/stream-output.jsonl"
 
-  claude -p "/solidity-function-audit-eval $tmp_dir" \
+  # Unset CLAUDECODE to allow nested invocation (e.g., when run from inside a Claude session)
+  env -u CLAUDECODE claude -p "/solidity-function-audit-eval $tmp_dir" \
     --plugin-dir "$PLUGIN_DIR" \
     --dangerously-skip-permissions \
     --output-format stream-json \
     --max-turns "$MAX_TURNS" \
     --max-budget-usd "$MAX_BUDGET" \
-    > "$stream_file" 2>/dev/null || true
+    > "$stream_file" 2>"$tmp_dir/claude-stderr.log" || true
 
   local end_time
   end_time=$(date +%s)
@@ -200,11 +201,7 @@ done
 
 # Aggregate with score.sh
 echo "=== Scoring ==="
-if [[ $TRIALS -gt 1 ]]; then
-  "$SCRIPT_DIR/score.sh" "$RESULTS_DIR" --trials "$TRIALS"
-else
-  "$SCRIPT_DIR/score.sh" "$RESULTS_DIR"
-fi
+"$SCRIPT_DIR/score.sh" "$RESULTS_DIR" --trials "$TRIALS"
 
 echo ""
 echo "=== Summary ==="
