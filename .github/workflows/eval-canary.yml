@@ -25,9 +25,9 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          # Run 2 fixtures, 1 trial each (canary = fast, cheap)
-          evals/scripts/run-eval.sh --fixture simple-reentrancy --trials 1 --max-budget-usd 5.0
-          evals/scripts/run-eval.sh --fixture clean-contract --trials 1 --max-budget-usd 5.0
+          # Run 2 fixtures, 1 trial each (canary — validates pipeline works)
+          evals/scripts/run-eval.sh --fixture simple-reentrancy --trials 1 --max-budget-usd 12.0
+          evals/scripts/run-eval.sh --fixture clean-contract --trials 1 --max-budget-usd 12.0
 
       - name: Check for regressions
         run: |

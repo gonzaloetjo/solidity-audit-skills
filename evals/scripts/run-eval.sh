@@ -15,7 +15,7 @@ PLUGIN_DIR="$ROOT_DIR/plugins/solidity-function-audit-eval"
 FIXTURE=""
 ALL=false
 TRIALS=1
-MAX_BUDGET="5.0"
+MAX_BUDGET="12.0"
 MAX_TURNS=200
 
 # Parse args
@@ -44,7 +44,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --fixture NAME       Run against a single fixture"
       echo "  --all                Run against all fixtures"
       echo "  --trials N           Number of trials per fixture (default: 1)"
-      echo "  --max-budget-usd N   Budget cap per trial in USD (default: 5.0)"
+      echo "  --max-budget-usd N   Budget cap per trial in USD (default: 12.0)"
       echo "  --max-turns N        Max agent turns per trial (default: 200)"
       exit 0
       ;;
