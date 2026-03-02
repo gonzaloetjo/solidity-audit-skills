@@ -33,7 +33,7 @@ codex/
 shared/
   {skill-name}/
     resources/
-      common/                              # FUNCTION_TEMPLATE, EXAMPLE_OUTPUT, REVIEW_PROMPTS
+      common/                              # FUNCTION_TEMPLATE, EXAMPLE_OUTPUT, REVIEW_PROMPTS, VERIFICATION_PROMPTS
       solo/STAGE_PROMPTS.md                # Solo variant prompts
       team/STAGE_PROMPTS.md                # Team variant prompts
 scripts/
@@ -72,7 +72,7 @@ Both use semver (MAJOR.MINOR.PATCH). Optional fields available in the spec: `aut
 
 **File-based agent output** — Agents write all analysis to markdown files via the Write tool. They never return analysis content in responses; instead they return a one-line confirmation: `"Written to {path} -- {N} items analyzed."`.
 
-**Stage pipeline** — Skills define 6 sequential stages: Stage 0 (design decisions, interactive + optional Slither), Stages 1-3 (foundation, domain audit, cross-cutting — agents in parallel), Stage 4 (human review, interactive), Stage 5 (re-evaluation, conditional agent). Later stages depend on earlier stage outputs.
+**Stage pipeline** — Skills define 7 sequential stages: Stage 0 (design decisions, interactive + optional Slither), Stages 1-3 (foundation, domain audit, cross-cutting — agents in parallel), Synthesis + Verification (false-positive filtering + Foundry test confirmation), Stage 4 (human review, interactive), Stage 5 (re-evaluation, conditional agent). Later stages depend on earlier stage outputs.
 
 **Slither integration** — If Slither is installed, the orchestrator runs it between Stage 0 and Stage 1. Findings go to `stage0/slither-findings.md`. Stage 2 and Stage 3 agents cross-reference with Slither via the `{slither_file}` placeholder.
 
@@ -88,7 +88,7 @@ Both use semver (MAJOR.MINOR.PATCH). Optional fields available in the spec: `aut
 
 **Output validation hooks** — Plugin hooks validate agent output files on completion. Solo uses `SubagentStop`, team uses `TaskCompleted`. Checks: non-empty, has `## ` headings, Stage 2 has required sections, Stage 2/3 have severity tags. Exit code 2 blocks completion and feeds the error back to the agent.
 
-**Session state checkpoint** — Each SKILL.md writes a checkpoint file (`stage-checkpoint.md`) after each stage, read before each new stage. A `PreCompact` hook reconciles STAGE_STATUS with file evidence before any compaction. Two stage boundaries suggest manual `/compact` with focus strings to the user (after Stage 0, after Synthesis).
+**Session state checkpoint** — Each SKILL.md writes a checkpoint file (`stage-checkpoint.md`) after each stage (including Verification), read before each new stage. A `PreCompact` hook reconciles STAGE_STATUS with file evidence before any compaction. Two stage boundaries suggest manual `/compact` with focus strings to the user (after Stage 0, after Synthesis). Checkpoint includes verification verdict tallies after the Verification stage.
 
 **Post-completion verification** — After each stage's file existence check, the orchestrator reads the first/last 5 lines of each output file to verify structure. Malformed files are noted as INCOMPLETE in synthesis.
 
@@ -96,9 +96,13 @@ Both use semver (MAJOR.MINOR.PATCH). Optional fields available in the spec: `aut
 
 **Domain grouping heuristic** — Pre-flight discovery groups contract functions into 4-10 domains of 3-15 functions each, confirmed with the user before launching agents.
 
-**Severity definitions**: CRITICAL (direct loss of funds, unauthorized access, broken core invariants — exploitable now), HIGH (conditional loss of funds, significant access control bypass — requires specific conditions), MEDIUM (protocol behavior deviation, incorrect state under edge conditions — limited financial impact), LOW (best practices, gas optimizations with security implications, minor unlikely issues), INFO (observations, design choices, confirmations). **Verdicts**: SOUND (only INFO or no findings), NEEDS_REVIEW (MEDIUM or LOW findings, no CRITICAL/HIGH), ISSUE_FOUND (CRITICAL or HIGH finding). **Review statuses**: BUG, DESIGN, DISPUTED, DISCUSS. **Re-evaluation outcomes**: UPHELD, WITHDRAWN, DOWNGRADED, NEEDS_TESTING.
+**Anti-pattern false-positive filtering** — Verification agents check findings against 6 research-backed false-positive patterns before investing in test generation. Anti-pattern checks happen at verification time (not during discovery) to keep Stage 2/3 agents aggressive.
 
-**Output directory**: `docs/audit/function-audit/{stage0,stage1,stage2,stage3,review}/` with `INDEX.md` and `SUMMARY.md` at the root. Stage 2 files use `domain-{slug}.md` naming.
+**Foundry test confirmation** — Verification agents write test files to `test/audit-verification/` and run `forge test`. Verdicts: CONFIRMED (test demonstrates issue), REFUTED (test shows code is safe), LIKELY-FP (anti-pattern matched), INCONCLUSIVE (cannot construct meaningful test).
+
+**Severity definitions**: CRITICAL (direct loss of funds, unauthorized access, broken core invariants — exploitable now), HIGH (conditional loss of funds, significant access control bypass — requires specific conditions), MEDIUM (protocol behavior deviation, incorrect state under edge conditions — limited financial impact), LOW (best practices, gas optimizations with security implications, minor unlikely issues), INFO (observations, design choices, confirmations). **Verdicts**: SOUND (only INFO or no findings), NEEDS_REVIEW (MEDIUM or LOW findings, no CRITICAL/HIGH), ISSUE_FOUND (CRITICAL or HIGH finding). **Review statuses**: BUG, DESIGN, DISPUTED, DISCUSS. **Re-evaluation outcomes**: UPHELD, WITHDRAWN, DOWNGRADED, NEEDS_TESTING. **Verification verdicts**: CONFIRMED (test demonstrates issue or investigation confirms exploitability), REFUTED (test shows code is safe or preconditions impossible), LIKELY-FP (anti-pattern matched), INCONCLUSIVE (cannot construct meaningful test).
+
+**Output directory**: `docs/audit/function-audit/{stage0,stage1,stage2,stage3,verification,review}/` with `INDEX.md` and `SUMMARY.md` at the root. Stage 2 files use `domain-{slug}.md` naming. Verification files use `finding-{NNN}.md` naming.
 
 ### Development Workflow
 
@@ -117,8 +121,8 @@ Both use semver (MAJOR.MINOR.PATCH). Optional fields available in the spec: `aut
 - File naming: manifests lowercase (`plugin.json`), skill entrypoint UPPERCASE (`SKILL.md`), resources SCREAMING_SNAKE_CASE (`STAGE_PROMPTS.md`)
 - All agent prompts use absolute paths to output files
 - All agents use `subagent_type: "general-purpose"`
-- Timeouts: Stage 1 = 5 min (300000ms), Stage 2 & 3 = 10 min (600000ms)
-- Turn limits: Stage 1/5 = 15 `max_turns`, Stage 2/3 = 25 `max_turns`
+- Timeouts: Stage 1 = 5 min (300000ms), Stage 2 & 3 = 10 min (600000ms), Verification CRIT/HIGH = 8 min (480000ms), Verification MEDIUM batch = 10 min (600000ms)
+- Turn limits: Stage 1/5 = 15 `max_turns`, Stage 2/3 = 25 `max_turns`, Verification CRIT/HIGH = 20 `max_turns`, MEDIUM batch = 25 `max_turns`
 - `{design_decisions_file}` is only substituted into Stage 2 and Stage 3 prompts (Stage 1 does not use it)
 - Re-running a skill checks for existing output; offers archive, overwrite, or cancel options
 
@@ -136,7 +140,7 @@ Both use semver (MAJOR.MINOR.PATCH). Optional fields available in the spec: `aut
 | solidity-function-audit-team | Agent team | `TeamCreate` + `SendMessage` + shared task list with `blockedBy` dependencies |
 | solidity-function-audit | Codex | Shell-native single-agent workflow via `codex/skills/` |
 
-Both variants run the same 6-stage pipeline (Stage 0 → Slither → 1 → 2 → 3 → 4 → 5). Stages 0, 4, 5 are orchestrator-interactive and identical across variants. Slither integration is identical. Only Stages 1-3 differ (solo uses background agents, team uses agent teams).
+Both variants run the same 7-stage pipeline (Stage 0 → Slither → 1 → 2 → 3 → Synthesis → Verification → 4 → 5). Stages 0, 4, 5 are orchestrator-interactive and identical across variants. Slither integration and Verification are identical. Only Stages 1-3 differ (solo uses background agents, team uses agent teams).
 
 FUNCTION_TEMPLATE.md, EXAMPLE_OUTPUT.md, and REVIEW_PROMPTS.md are canonical in `shared/` and synced to plugins and Codex via `scripts/sync_shared_resources.sh`. STAGE_PROMPTS.md has solo and team variants in `shared/` (differs by Communication Guidelines sections). Both hooks directories contain `hooks.json` + `validate-output.sh` (different hook events but same validation logic).
 

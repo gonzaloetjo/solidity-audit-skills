@@ -67,6 +67,11 @@ if [ -f "${AUDIT_DIR}/INDEX.md" ] && [ -f "${AUDIT_DIR}/SUMMARY.md" ]; then
   STATUS_PARTS="${STATUS_PARTS} synthesis=complete"
 fi
 
+# Verification: verification-summary.md
+if [ -f "${AUDIT_DIR}/verification/verification-summary.md" ]; then
+  STATUS_PARTS="${STATUS_PARTS} verification=complete"
+fi
+
 # Stage 4: review-responses.md
 if [ -f "${AUDIT_DIR}/review/review-responses.md" ]; then
   STATUS_PARTS="${STATUS_PARTS} stage4=complete"

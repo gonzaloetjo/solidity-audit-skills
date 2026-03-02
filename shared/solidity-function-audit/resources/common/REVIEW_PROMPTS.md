@@ -98,6 +98,14 @@ Parse all findings from stage2/ and stage3/ files using these patterns:
 
 Also extract `DESIGN_DECISION -- ` tagged findings separately.
 
+**1b. Load verification verdicts**: If `verification/verification-summary.md` exists, read it and build a lookup: finding number → verdict. When presenting each finding in the Review Flow, prepend the verification tag:
+- `[CONFIRMED]` findings: present as "Automated test confirmed this issue"
+- `[REFUTED]` findings: present as "Automated test could not reproduce — see verification file for details"
+- `[LIKELY-FP]` findings: present as "Matched known false-positive pattern — see verification file"
+- `[INCONCLUSIVE]` findings: present as "Could not construct automated test"
+
+Developers still classify all findings regardless of verification verdict — verification informs but does not override human judgment.
+
 ### Review Flow
 
 **Step 1 — CRITICALs** (if any):

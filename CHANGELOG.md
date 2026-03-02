@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.6.0] - 2026-03-02
+
+### Added
+- **Verification stage** (both variants): New stage between Synthesis and Stage 4. Sequential fresh background agents validate CRITICAL/HIGH findings with anti-pattern checks, upstream/cross-contract investigation, and Foundry test generation. MEDIUM findings get batch anti-pattern verification without tests. Verdicts: CONFIRMED, REFUTED, LIKELY-FP, INCONCLUSIVE.
+- **Anti-pattern false-positive checklist**: 6 research-backed patterns (reentrancy on guarded code, overflow in 0.8+, access control without exploit path, pattern without precondition, flash loan without economics, front-running on protected code). Applied during verification, not during discovery.
+- **VERIFICATION_PROMPTS.md**: New shared resource with per-finding and batch prompt templates, anti-pattern checklist, and verdict definitions.
+- **Foundry test artifacts**: Verification agents write test files to `test/audit-verification/` in the project root. Persistent artifacts the developer can re-run.
+
+### Changed
+- **Stage 4 human review** (both variants): Finding presentation now includes verification verdict tags when available. Developers see `[CONFIRMED]`, `[REFUTED]`, `[LIKELY-FP]`, or `[INCONCLUSIVE]` inline before classifying each finding.
+- **INDEX.md and SUMMARY.md** (both variants): Updated with Verification section and "Verified" column in the All Findings master table.
+- **Output validation hooks** (both variants): Added `*/verification/*` case to validate verdict tags in agent output.
+- **PreCompact hook** (both variants): Added verification scan block.
+- **Pipeline**: Extended from 6-stage to 7-stage (Stage 0 → Slither → 1 → 2 → 3 → Synthesis → Verification → 4 → 5).
+
 ## [1.5.2] - 2026-03-02
 
 ### Added

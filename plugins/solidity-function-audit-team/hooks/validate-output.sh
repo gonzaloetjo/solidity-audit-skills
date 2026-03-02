@@ -69,6 +69,13 @@ case "$OUTPUT_FILE" in
       exit 2
     fi
     ;;
+  */verification/*)
+    # Verification files must have a verdict tag
+    if ! grep -qE '\[(CONFIRMED|REFUTED|LIKELY-FP|INCONCLUSIVE)\]' "$OUTPUT_FILE" 2>/dev/null; then
+      echo "Output validation failed: ${OUTPUT_FILE} missing verdict tag." >&2
+      exit 2
+    fi
+    ;;
 esac
 
 exit 0

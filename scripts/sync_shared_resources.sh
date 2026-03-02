@@ -23,6 +23,7 @@ COMMON_FILES=(
   "FUNCTION_TEMPLATE.md"
   "EXAMPLE_OUTPUT.md"
   "REVIEW_PROMPTS.md"
+  "VERIFICATION_PROMPTS.md"
 )
 
 copy_or_check() {
@@ -50,9 +51,11 @@ ensure_exists() {
 
 for file in "${COMMON_FILES[@]}"; do
   ensure_exists "$COMMON_SRC/$file"
-  ensure_exists "$SOLO_DST/$file"
-  ensure_exists "$TEAM_DST/$file"
-  ensure_exists "$CODEX_DST/$file"
+  if [[ "$MODE" == "check" ]]; then
+    ensure_exists "$SOLO_DST/$file"
+    ensure_exists "$TEAM_DST/$file"
+    ensure_exists "$CODEX_DST/$file"
+  fi
 
   copy_or_check "$COMMON_SRC/$file" "$SOLO_DST/$file"
   copy_or_check "$COMMON_SRC/$file" "$TEAM_DST/$file"

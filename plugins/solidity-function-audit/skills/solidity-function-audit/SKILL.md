@@ -46,7 +46,7 @@ Target 4-10 domains of 3-15 functions each. If the contract has fewer than 15 fu
 
 ### 5. Create Output Directory
 ```
-mkdir -p docs/audit/function-audit/{stage0,stage1,stage2,stage3,review}
+mkdir -p docs/audit/function-audit/{stage0,stage1,stage2,stage3,verification,review}
 ```
 
 ### 6. Preview Domains
@@ -327,6 +327,57 @@ If the user declines, output links to INDEX.md and SUMMARY.md and stop.
 
 ---
 
+## Verification (sequential background agents — between Synthesis and Stage 4)
+
+Using the "All Findings" master table from INDEX.md, collect all CRITICAL, HIGH, and MEDIUM findings.
+
+Ask the user: "Run automated verification? This spawns one sequential agent per CRITICAL/HIGH finding (Foundry test each) plus one batch agent for MEDIUMs (anti-pattern check only). Estimated: {N} sequential agents + 1 batch. [yes/skip]"
+
+If skip → proceed directly to Stage 4.
+
+### Setup
+```
+mkdir -p docs/audit/function-audit/verification
+mkdir -p test/audit-verification
+```
+
+### Per-Finding Agents (CRITICAL and HIGH — sequential)
+
+For each CRITICAL/HIGH finding (CRITICALs first, then HIGHs):
+
+1. Read the per-finding prompt from `resources/VERIFICATION_PROMPTS.md` and fill in placeholders:
+   - `{finding_number}` — zero-padded 3-digit from master table (e.g., `001`)
+   - `{finding_severity}`, `{finding_title}`, `{finding_source_file}`, `{finding_function}`
+   - `{output_file}` — `docs/audit/function-audit/verification/finding-{NNN}.md`
+   - `{test_dir}` — absolute path to `{PROJECT_PATH}/test/audit-verification/`
+   - `{test_name}` — `AuditVerify_{NNN}_{ContractName}` (PascalCase)
+   - `{source_file_list}`, `{stage1_file_list}`, `{design_decisions_file}`
+2. Launch ONE Task agent: `run_in_background: true`, `subagent_type: "general-purpose"`, `max_turns: 20`
+3. **Wait**: `TaskOutput(block: true, timeout: 480000)` — do NOT launch next agent until complete
+4. Quick-validate: verify `finding-{NNN}.md` is non-empty and contains one of `[CONFIRMED]`, `[REFUTED]`, `[LIKELY-FP]`, `[INCONCLUSIVE]`
+
+### MEDIUM Batch Agent
+
+If MEDIUM findings exist:
+1. Read the batch prompt from `resources/VERIFICATION_PROMPTS.md` and fill in `{medium_findings_list}` (number, title, source file, function, full finding text for each), `{output_file}` (`verification/medium-findings.md`), `{source_file_list}`, `{stage1_file_list}`, `{design_decisions_file}`
+2. Launch ONE Task agent: `run_in_background: true`, `subagent_type: "general-purpose"`, `max_turns: 25`
+3. Wait: `TaskOutput(block: true, timeout: 600000)`
+4. Quick-validate: verify `medium-findings.md` is non-empty and contains `## ` heading
+
+### Write Verification Summary
+
+Orchestrator writes `docs/audit/function-audit/verification/verification-summary.md` with:
+- Results table: `| # | Severity | Finding | Verdict | Test File |`
+- Verdict counts: `CONFIRMED: N | REFUTED: N | LIKELY-FP: N | INCONCLUSIVE: N`
+
+Update INDEX.md: add "Verification" section with file links + add "Verified" column to "All Findings" table.
+Update SUMMARY.md: add "Verification" section with verdict counts and notable confirmed issues.
+Update session state checkpoint (Verification complete, add verdict tallies).
+
+Report: "Verification complete. {N} CONFIRMED, {N} REFUTED, {N} LIKELY-FP, {N} INCONCLUSIVE. Proceed to findings review? [yes/no]"
+
+---
+
 ## Stage 4: Human Review (orchestrator-interactive)
 
 Read the review flow from `resources/REVIEW_PROMPTS.md` (Stage 4 section). Execute interactively:
@@ -409,6 +460,7 @@ Display final summary to the user with links to all output files.
 - **Stage 0 is best-effort** — if no design signals are detected, write an empty design-decisions.md and proceed. Agents evaluate independently.
 - **Stage 4 requires patience** — present findings in severity batches, not one-by-one. Let the user classify at their own pace. Never auto-classify.
 - **Stage 5 is conditional** — only runs if DISPUTED or DISCUSS items exist. Do not spawn the re-evaluation agent otherwise.
+- **Verification is sequential** — never run more than one verification agent at a time (forge compilation lock conflicts).
 
 ---
 
@@ -416,4 +468,5 @@ Display final summary to the user with links to all output files.
 - **Agents**: All use `subagent_type: "general-purpose"` with absolute paths in all prompts.
 - **Error handling**: If an agent fails or times out, report the failure and continue with remaining agents. Note missing files in INDEX.md as `INCOMPLETE — agent failed`.
 - **Previous runs**: Step 0 of Pre-Flight checks for existing output and offers archive, overwrite, or cancel options.
+- **Verification tests**: Written to `test/audit-verification/` in the project root. Tests are persistent artifacts the developer can re-run.
 - **Long sessions**: For large projects, set `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=70` in settings for earlier, higher-quality compaction summaries.
