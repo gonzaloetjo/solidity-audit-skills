@@ -15,6 +15,7 @@ plugins/
     hooks/                                 # Plugin hooks (optional)
       hooks.json                           #   Hook event configuration
       validate-output.sh                   #   Output validation script
+      precompact-checkpoint.sh             #   Checkpoint reconciliation before compaction
     skills/
       {skill-name}/
         SKILL.md                           # Skill entrypoint (required)
@@ -87,7 +88,7 @@ Both use semver (MAJOR.MINOR.PATCH). Optional fields available in the spec: `aut
 
 **Output validation hooks** — Plugin hooks validate agent output files on completion. Solo uses `SubagentStop`, team uses `TaskCompleted`. Checks: non-empty, has `## ` headings, Stage 2 has required sections, Stage 2/3 have severity tags. Exit code 2 blocks completion and feeds the error back to the agent.
 
-**Compaction guidance** — Each SKILL.md includes a "Context Compaction Guidance" section listing critical values the compactor must preserve (paths, domain groupings, placeholders, stage status).
+**Session state checkpoint** — Each SKILL.md writes a checkpoint file (`stage-checkpoint.md`) after each stage, read before each new stage. A `PreCompact` hook reconciles STAGE_STATUS with file evidence before any compaction. Two stage boundaries suggest manual `/compact` with focus strings to the user (after Stage 0, after Synthesis).
 
 **Post-completion verification** — After each stage's file existence check, the orchestrator reads the first/last 5 lines of each output file to verify structure. Malformed files are noted as INCOMPLETE in synthesis.
 
@@ -152,7 +153,7 @@ Search: `"Claude Code agent teams"`, `"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS"`
 **Permission modes** — Team skill uses `mode: "bypassPermissions"` for all stages (read/write without prompts). Stage 2 teammates use prompt-based planning (design plan → message lead → execute) instead of `mode: "plan"` to avoid deadlocks with the plan approval protocol.
 Docs: https://code.claude.com/docs/en/sub-agents#permission-modes
 
-**Hooks** (stable) — Both plugins define `hooks/hooks.json` for output validation. Solo uses `SubagentStop` (matched to `general-purpose` agent type). Team uses `TaskCompleted`. Exit code 2 blocks completion and feeds validation errors back to the agent. Scripts use `${CLAUDE_PLUGIN_ROOT}` for path resolution.
+**Hooks** (stable) — Both plugins define `hooks/hooks.json` for output validation and checkpoint reconciliation. Solo uses `SubagentStop` (matched to `general-purpose` agent type). Team uses `TaskCompleted`. Both use `PreCompact` to reconcile checkpoint STAGE_STATUS with file evidence before compaction. Exit code 2 blocks completion and feeds validation errors back to the agent. Scripts use `${CLAUDE_PLUGIN_ROOT}` for path resolution.
 Docs: https://code.claude.com/docs/en/hooks
 
 ### Reference Links
@@ -180,7 +181,7 @@ Docs: https://code.claude.com/docs/en/hooks
 ### Known Limitations
 
 - **Agent teams is experimental**: no session resumption with in-process teammates, shutdown can be slow, one team per session, uses significantly more tokens
-- **Context compaction destroys team state**: long sessions may trigger auto-compaction that drops task IDs, domain groupings, or file paths. Mitigated by compaction guidance in SKILL.md but not eliminated. See [#23620](https://github.com/anthropics/claude-code/issues/23620)
+- **Context compaction destroys team state**: long sessions may trigger auto-compaction that drops task IDs, domain groupings, or file paths. Mitigated by session state checkpoint file (`stage-checkpoint.md`) that persists all non-reconstructible state to disk. See [#23620](https://github.com/anthropics/claude-code/issues/23620)
 - **Resource file duplication**: FUNCTION_TEMPLATE.md and EXAMPLE_OUTPUT.md are synced from `shared/` via `scripts/sync_shared_resources.sh`; runtime duplication still exists by design (plugins are cached on install), but development-time drift is prevented by the sync script
 - **Timeout tuning**: Stage 2 timeout (10 min) may be insufficient for large projects with many domains; max allowed is 600000ms
 - **Manual domain grouping**: the 4-10 domain / 3-15 function heuristic requires user confirmation and may need adjustment per project

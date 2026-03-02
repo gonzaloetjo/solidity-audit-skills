@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.5.2] - 2026-03-02
+
+### Added
+- **PreCompact hook** (both variants): New `precompact-checkpoint.sh` hook reconciles checkpoint STAGE_STATUS with file-system evidence before any compaction event. Ensures checkpoint accuracy even when auto-compaction fires mid-stage.
+
+### Changed
+- **Session state checkpoint** (both variants): Replaced passive "Context Compaction Guidance" section with active checkpoint file (`stage-checkpoint.md`) written after each stage. Orchestrator reads checkpoint before each stage for state validation and post-compaction recovery. STAGE_STATUS line is machine-parseable by the PreCompact hook.
+- **`/compact` focus strings** (both variants): Manual compaction suggestions now include focus strings to guide compaction summary quality (e.g., `/compact preserve audit stage status, domain groupings, and file paths`).
+- **Long session guidance** (both variants): Added `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=70` recommendation for large projects.
+
 ## [1.5.1] - 2026-02-13
 
 ### Added

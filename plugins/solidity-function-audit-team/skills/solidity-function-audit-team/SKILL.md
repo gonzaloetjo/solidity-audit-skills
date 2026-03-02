@@ -71,16 +71,22 @@ Scan source files for DeFi-relevant patterns to condition Stage 2/3 prompts:
 
 ---
 
-## Context Compaction Guidance
+## Session State Checkpoint
 
-If auto-compaction occurs during this session, preserve these critical values:
-- `PROJECT_PATH` and all source file paths
-- Domain groupings with function lists
-- All output file absolute paths (stage0/, stage1/, stage2/, stage3/, review/)
-- All placeholder values: `{design_decisions_file}`, `{slither_file}`, `{template_file}`, `{example_file}`
-- Finding tallies per stage (CRITICAL/HIGH/MEDIUM/LOW/INFO counts)
-- Current stage number and completion status of each stage
-- Team name (`function-audit`) and all task IDs with their statuses
+After each completed stage, write `{output_root}/stage-checkpoint.md` using the Write tool (full overwrite). Include:
+- `PROJECT_PATH`, `OUTPUT_ROOT`
+- `STAGE_STATUS`: key=value pairs for each stage (e.g., `preflight=complete stage0=complete stage1=pending`). Write as a standalone line starting with `STAGE_STATUS:` — this line is machine-parsed by the PreCompact hook.
+- `DOMAINS`: one line per domain with slug, name, and function list
+- `FLAGS`: `has_tokens`, `has_proxies`, `has_oracles`
+- `PATHS`: `design_decisions_file`, `slither_file`, and all stage output file paths known so far
+- After Synthesis: `FINDING_TOTALS` with severity counts
+- After Stage 4: `REVIEW_RESPONSES_FILE` and `DISPUTED_COUNT`
+- `TEAM_NAME`: `function-audit`
+
+Before each stage, read the checkpoint file to confirm all paths and domain groupings. If state has been lost (e.g., after auto-compaction), recover via:
+1. `Glob(pattern: "**/docs/audit/function-audit/stage-checkpoint.md")`
+2. Read the file to restore all session state
+3. Resume from the last completed stage
 
 ---
 
@@ -113,6 +119,8 @@ Run Slither static analysis if available. This is NOT a teammate — the lead do
 6. If the file exists → Read it, map findings (High→HIGH, Medium→MEDIUM, Low→LOW, Informational→INFO), write to `docs/audit/function-audit/stage0/slither-findings.md`
 7. Display summary: "Slither found N findings (H high, M medium, L low, I info)"
 8. Store path as `{slither_file}` for teammate prompts
+
+Write the initial session state checkpoint. Inform the user: "Checkpoint saved. You may run `/compact preserve audit stage status, domain groupings, and file paths` to free context before agent launch, or say proceed."
 
 ---
 
@@ -283,9 +291,10 @@ After spawning all teammates:
    - For Stage 2 files: verify they contain `## Summary of Findings` or `## Cross-Cutting Analysis` and at least one severity tag (`**CRITICAL -- `, `**HIGH -- `, `**MEDIUM -- `, `**LOW -- `, or `**INFO -- `)
    - For Stage 3 files: verify they contain at least one severity tag
    - If validation fails for any file, note it as INCOMPLETE in synthesis
-6. Proceed to Synthesis
-7. Send shutdown requests to all teammates: `SendMessage(type: "shutdown_request", recipient: "<name>", content: "All tasks complete")`
-7. After all teammates shut down, call `TeamDelete` to clean up
+6. Update the session state checkpoint (Stages 1-3 complete, add all stage1/stage2/stage3 file paths).
+7. Proceed to Synthesis
+8. Send shutdown requests to all teammates: `SendMessage(type: "shutdown_request", recipient: "<name>", content: "All tasks complete")`
+9. After all teammates shut down, call `TeamDelete` to clean up
 
 ### Concurrency
 - Stage 1: 3 teammates active simultaneously (tasks have no blockedBy)
@@ -343,6 +352,9 @@ Display finding stats and ask if the user wants to proceed to human review:
 - Finding breakdown by severity (5 levels)
 - Verdict breakdown
 - Any CRITICAL or HIGH findings highlighted
+
+Update the session state checkpoint (Synthesis complete, add finding tallies). Inform the user: "Checkpoint updated. You may run `/compact preserve audit stage status, domain groupings, and finding tallies` to free context before interactive review, or proceed directly."
+
 - "Proceed to findings review? [yes/no]"
 
 If the user declines, output links to INDEX.md and SUMMARY.md and stop.
@@ -360,6 +372,8 @@ Read the review flow from `resources/REVIEW_PROMPTS.md` (Stage 4 section). Execu
 5. **Present LOWs and INFOs**: Summary count, opt-in to review.
 6. **Follow-up on DISPUTED/DISCUSS**: Show full finding + source code, record developer reasoning.
 6. **Write output**: `docs/audit/function-audit/review/review-responses.md`
+
+Update the session state checkpoint (Stage 4 complete, add review file path and disputed count).
 
 ---
 
@@ -396,3 +410,4 @@ Update `SUMMARY.md` with a "Human Review" section (classification table + before
 - **File paths**: Always use absolute paths in task descriptions so teammates can Read files without ambiguity.
 - **Error handling**: If a teammate fails or a task gets stuck, the lead should investigate via TaskList and reassign if needed. In synthesis, note missing files in INDEX.md with status `INCOMPLETE — agent failed` and proceed using available outputs.
 - **Previous runs**: Step 0 of Pre-Flight checks for existing output and offers archive, overwrite, or cancel options.
+- **Long sessions**: For large projects, set `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=70` in settings for earlier, higher-quality compaction summaries.

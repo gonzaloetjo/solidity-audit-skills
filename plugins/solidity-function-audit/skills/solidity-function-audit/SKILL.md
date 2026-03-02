@@ -67,15 +67,21 @@ Scan source files for DeFi-relevant patterns to condition Stage 2/3 prompts:
 
 ---
 
-## Context Compaction Guidance
+## Session State Checkpoint
 
-If auto-compaction occurs during this session, preserve these critical values:
-- `PROJECT_PATH` and all source file paths
-- Domain groupings with function lists
-- All output file absolute paths (stage0/, stage1/, stage2/, stage3/, review/)
-- All placeholder values: `{design_decisions_file}`, `{slither_file}`, `{template_file}`, `{example_file}`
-- Finding tallies per stage (CRITICAL/HIGH/MEDIUM/LOW/INFO counts)
-- Current stage number and completion status of each stage
+After each completed stage, write `{output_root}/stage-checkpoint.md` using the Write tool (full overwrite). Include:
+- `PROJECT_PATH`, `OUTPUT_ROOT`
+- `STAGE_STATUS`: key=value pairs for each stage (e.g., `preflight=complete stage0=complete stage1=pending`). Write as a standalone line starting with `STAGE_STATUS:` — this line is machine-parsed by the PreCompact hook.
+- `DOMAINS`: one line per domain with slug, name, and function list
+- `FLAGS`: `has_tokens`, `has_proxies`, `has_oracles`
+- `PATHS`: `design_decisions_file`, `slither_file`, and all stage output file paths known so far
+- After Synthesis: `FINDING_TOTALS` with severity counts
+- After Stage 4: `REVIEW_RESPONSES_FILE` and `DISPUTED_COUNT`
+
+Before each stage, read the checkpoint file to confirm all paths and domain groupings. If state has been lost (e.g., after auto-compaction), recover via:
+1. `Glob(pattern: "**/docs/audit/function-audit/stage-checkpoint.md")`
+2. Read the file to restore all session state
+3. Resume from the last completed stage
 
 ---
 
@@ -126,6 +132,8 @@ Run Slither static analysis if available. This is NOT an agent — the orchestra
 7. Display summary: "Slither found N findings (H high, M medium, L low, I info)"
 8. Store path as `{slither_file}` for agent prompts
 
+Write the initial session state checkpoint. Inform the user: "Checkpoint saved. You may run `/compact preserve audit stage status, domain groupings, and file paths` to free context before agent launch, or say proceed."
+
 ---
 
 ## Stage 1: Foundation Context (3 background agents)
@@ -149,6 +157,7 @@ After launching all 3:
 3. Use Glob to verify all 3 files exist: `docs/audit/function-audit/stage1/*.md`
 4. Quick-validate each output file: Read the first 5 and last 5 lines. Verify the file is non-empty and contains at least one markdown heading (`## `). If validation fails for any file, report the issue to the user and note the file as INCOMPLETE in synthesis.
 5. Report Stage 1 completion to user before proceeding
+6. Update the session state checkpoint (Stage 1 complete, add stage1 file paths).
 
 ---
 
@@ -176,6 +185,7 @@ After launching all domain agents:
 3. Use Glob to verify all domain files exist: `docs/audit/function-audit/stage2/*.md`
 4. Quick-validate each output file: Read the first 5 and last 5 lines. Verify the file is non-empty, contains at least one `## ` heading, contains `## Summary of Findings` or `## Cross-Cutting Analysis`, and has at least one severity tag (`**CRITICAL -- `, `**HIGH -- `, `**MEDIUM -- `, `**LOW -- `, or `**INFO -- `). If validation fails, note the file as INCOMPLETE in synthesis.
 5. Report Stage 2 completion to user with domain names and finding counts
+6. Update the session state checkpoint (Stage 2 complete, add stage2 file paths).
 
 ---
 
@@ -205,6 +215,7 @@ After launching all 4:
 3. Use Glob to verify all files exist: `docs/audit/function-audit/stage3/*.md`
 4. Quick-validate each output file: Read the first 5 and last 5 lines. Verify the file is non-empty, contains at least one `## ` heading, and has at least one severity tag (`**CRITICAL -- `, `**HIGH -- `, `**MEDIUM -- `, `**LOW -- `, or `**INFO -- `). If validation fails, note the file as INCOMPLETE in synthesis.
 5. Report Stage 3 completion to user
+6. Update the session state checkpoint (Stage 3 complete, add stage3 file paths).
 
 ---
 
@@ -307,6 +318,9 @@ Display finding stats and ask if the user wants to proceed to human review:
 - Finding breakdown by severity (5 levels)
 - Verdict breakdown
 - Any CRITICAL or HIGH findings highlighted
+
+Update the session state checkpoint (Synthesis complete, add finding tallies). Inform the user: "Checkpoint updated. You may run `/compact preserve audit stage status, domain groupings, and finding tallies` to free context before interactive review, or proceed directly."
+
 - "Proceed to findings review? [yes/no]"
 
 If the user declines, output links to INDEX.md and SUMMARY.md and stop.
@@ -330,6 +344,8 @@ Read the review flow from `resources/REVIEW_PROMPTS.md` (Stage 4 section). Execu
 6. **Follow-up on DISPUTED/DISCUSS**: For each, show full finding text + relevant source code, ask user for reasoning, record response.
 
 6. **Write output**: Write `docs/audit/function-audit/review/review-responses.md` using the format from REVIEW_PROMPTS.md.
+
+Update the session state checkpoint (Stage 4 complete, add review file path and disputed count).
 
 ---
 
@@ -400,3 +416,4 @@ Display final summary to the user with links to all output files.
 - **Agents**: All use `subagent_type: "general-purpose"` with absolute paths in all prompts.
 - **Error handling**: If an agent fails or times out, report the failure and continue with remaining agents. Note missing files in INDEX.md as `INCOMPLETE — agent failed`.
 - **Previous runs**: Step 0 of Pre-Flight checks for existing output and offers archive, overwrite, or cancel options.
+- **Long sessions**: For large projects, set `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=70` in settings for earlier, higher-quality compaction summaries.

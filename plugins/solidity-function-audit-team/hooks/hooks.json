@@ -1,5 +1,5 @@
 {
-  "description": "Output validation for solidity-function-audit-team tasks",
+  "description": "Output validation and checkpoint reconciliation for solidity-function-audit-team tasks",
   "hooks": {
     "TaskCompleted": [
       {
@@ -8,6 +8,17 @@
             "type": "command",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/validate-output.sh\"",
             "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/precompact-checkpoint.sh\"",
+            "timeout": 10
           }
         ]
       }
