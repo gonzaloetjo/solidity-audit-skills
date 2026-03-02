@@ -352,7 +352,7 @@ For each CRITICAL/HIGH finding (CRITICALs first, then HIGHs):
    - `{test_dir}` — absolute path to `{PROJECT_PATH}/test/audit-verification/`
    - `{test_name}` — `AuditVerify_{NNN}_{ContractName}` (PascalCase)
    - `{source_file_list}`, `{stage1_file_list}`, `{design_decisions_file}`
-2. Launch ONE Task agent: `run_in_background: true`, `subagent_type: "general-purpose"`, `max_turns: 20`
+2. Launch ONE Task agent: `subagent_type: "solidity-function-audit:solidity-verifier"`, `max_turns: 20`
 3. **Wait**: `TaskOutput(block: true, timeout: 480000)` — do NOT launch next agent until complete
 4. Quick-validate: verify `finding-{NNN}.md` is non-empty and contains one of `[CONFIRMED]`, `[REFUTED]`, `[LIKELY-FP]`, `[INCONCLUSIVE]`
 
@@ -360,7 +360,7 @@ For each CRITICAL/HIGH finding (CRITICALs first, then HIGHs):
 
 If MEDIUM findings exist:
 1. Read the batch prompt from `resources/VERIFICATION_PROMPTS.md` and fill in `{medium_findings_list}` (number, title, source file, function, full finding text for each), `{output_file}` (`verification/medium-findings.md`), `{source_file_list}`, `{stage1_file_list}`, `{design_decisions_file}`
-2. Launch ONE Task agent: `run_in_background: true`, `subagent_type: "general-purpose"`, `max_turns: 25`
+2. Launch ONE Task agent: `subagent_type: "solidity-function-audit:solidity-verifier"`, `max_turns: 25`
 3. Wait: `TaskOutput(block: true, timeout: 600000)`
 4. Quick-validate: verify `medium-findings.md` is non-empty and contains `## ` heading
 
@@ -465,7 +465,7 @@ Display final summary to the user with links to all output files.
 ---
 
 ## Notes
-- **Agents**: All use `subagent_type: "general-purpose"` with absolute paths in all prompts.
+- **Agents**: Stages 1-3 and 5 use `subagent_type: "general-purpose"`. Verification uses `solidity-function-audit:solidity-verifier` (tool-restricted, `background: true` encoded in agent definition). All prompts use absolute paths.
 - **Error handling**: If an agent fails or times out, report the failure and continue with remaining agents. Note missing files in INDEX.md as `INCOMPLETE — agent failed`.
 - **Previous runs**: Step 0 of Pre-Flight checks for existing output and offers archive, overwrite, or cancel options.
 - **Verification tests**: Written to `test/audit-verification/` in the project root. Tests are persistent artifacts the developer can re-run.

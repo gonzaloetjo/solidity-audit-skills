@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.8.0] - 2026-03-02
+
+### Added
+- **Evaluation framework** (`evals/`): Fixtures with known vulnerabilities, grading scripts, and normative grading specification for measuring audit skill quality. Separates grading from invocation — users run the skill manually, then grade the output.
+- **Grading scripts**: `grade.sh` (parses INDEX.md vs GROUND_TRUTH.md → grade.json), `match-finding.sh` (Jaccard similarity for fuzzy title matching), `score.sh` (aggregates grade.json files → markdown report table).
+- **Metrics**: Detection Rate (DR), False Positive Rate (FPR), Severity Accuracy (SA), Verification Accuracy (VA), Audit Youden Index (AYI = DR − FPR). Multi-trial support with best@k, median@k aggregation.
+- **GRADING_SPEC.md**: Normative specification for the finding matching algorithm (exact location → fuzzy title → severity adjacency gate) and all metric definitions.
+- **5 evaluation fixtures**: simple-reentrancy (baseline CEI violation), erc4626-rounding (DeFi share math), access-control-bypass (inheritance modifier omission), oracle-manipulation (cross-contract flash loan), state-divergence (Stage 3a stale state). 10 known vulnerabilities total (2C, 4H, 2M, 1L, 1I). All self-contained Foundry projects.
+
+## [1.7.0] - 2026-03-02
+
+### Added
+- **Custom `solidity-verifier` subagent** (both variants): New `agents/solidity-verifier.md` plugin agent definition with `disallowedTools` (WebSearch, WebFetch, NotebookEdit), `model: inherit`, and `background: true`. Verification agents now use `{plugin-name}:solidity-verifier` instead of `general-purpose`, restricting tool access and encoding background mode in the agent definition.
+- **Solo hooks matcher**: Added `solidity-verifier` matcher to `SubagentStop` in solo `hooks.json` so output validation fires for the new agent type.
+
+### Changed
+- **Verification agent spawning** (both variants): Removed `run_in_background: true` from verification Task calls — now encoded in the agent definition. Changed `subagent_type` from `"general-purpose"` to `"{plugin-name}:solidity-verifier"`.
+- **CLAUDE.md**: Updated directory layout, conventions, hooks description, and features sections to document custom plugin agents.
+
 ## [1.6.0] - 2026-03-02
 
 ### Added

@@ -386,7 +386,7 @@ For each CRITICAL/HIGH finding (CRITICALs first, then HIGHs):
    - `{test_dir}` — absolute path to `{PROJECT_PATH}/test/audit-verification/`
    - `{test_name}` — `AuditVerify_{NNN}_{ContractName}` (PascalCase)
    - `{source_file_list}`, `{stage1_file_list}`, `{design_decisions_file}`
-2. Launch ONE Task agent: `run_in_background: true`, `subagent_type: "general-purpose"`, `max_turns: 20`
+2. Launch ONE Task agent: `subagent_type: "solidity-function-audit-team:solidity-verifier"`, `max_turns: 20`
 3. **Wait**: `TaskOutput(block: true, timeout: 480000)` — do NOT launch next agent until complete
 4. Quick-validate: verify `finding-{NNN}.md` is non-empty and contains one of `[CONFIRMED]`, `[REFUTED]`, `[LIKELY-FP]`, `[INCONCLUSIVE]`
 
@@ -394,7 +394,7 @@ For each CRITICAL/HIGH finding (CRITICALs first, then HIGHs):
 
 If MEDIUM findings exist:
 1. Read the batch prompt from `resources/VERIFICATION_PROMPTS.md` and fill in `{medium_findings_list}` (number, title, source file, function, full finding text for each), `{output_file}` (`verification/medium-findings.md`), `{source_file_list}`, `{stage1_file_list}`, `{design_decisions_file}`
-2. Launch ONE Task agent: `run_in_background: true`, `subagent_type: "general-purpose"`, `max_turns: 25`
+2. Launch ONE Task agent: `subagent_type: "solidity-function-audit-team:solidity-verifier"`, `max_turns: 25`
 3. Wait: `TaskOutput(block: true, timeout: 600000)`
 4. Quick-validate: verify `medium-findings.md` is non-empty and contains `## ` heading
 

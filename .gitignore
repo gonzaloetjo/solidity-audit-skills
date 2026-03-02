@@ -1,1 +1,5 @@
 .claude/
+evals/results/*/
+evals/fixtures/*/out/
+evals/fixtures/*/cache/
+evals/fixtures/*/lib/

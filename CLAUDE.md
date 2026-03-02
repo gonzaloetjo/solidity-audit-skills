@@ -12,6 +12,8 @@ Pure markdown repo — no build step, no dependencies.
 plugins/
   {plugin-name}/
     .claude-plugin/plugin.json             # Plugin manifest
+    agents/                                # Plugin subagent definitions (optional)
+      solidity-verifier.md                 #   Verification specialist agent
     hooks/                                 # Plugin hooks (optional)
       hooks.json                           #   Hook event configuration
       validate-output.sh                   #   Output validation script
@@ -38,6 +40,22 @@ shared/
       team/STAGE_PROMPTS.md                # Team variant prompts
 scripts/
   sync_shared_resources.sh                 # Sync shared/ → plugin + codex resources
+evals/
+  README.md                                # Framework overview + usage guide
+  GRADING_SPEC.md                          # Normative grading algorithm specification
+  fixtures/
+    README.md                              # How to add a new fixture
+    {fixture-name}/                        # Fixture = minimal Foundry project
+      foundry.toml
+      src/*.sol                            # Vulnerable contract(s)
+      test/*.t.sol                         # Compilation test (NOT exploit test)
+      GROUND_TRUTH.md                      # Known vulns + known safe functions
+  scripts/
+    grade.sh                               # Parses INDEX.md vs GROUND_TRUTH.md → grade.json
+    match-finding.sh                       # Fuzzy title matcher (Jaccard similarity)
+    score.sh                               # Aggregates grade.json files → markdown report
+  results/
+    .gitkeep                               # Results dir committed empty; contents gitignored
 docs/
   DUAL_RELEASES.md                         # Release guide for Claude + Codex
 README.md
@@ -114,13 +132,15 @@ Both use semver (MAJOR.MINOR.PATCH). Optional fields available in the spec: `aut
 
 **Editing shared resources**: Edit files in `shared/`, then run `scripts/sync_shared_resources.sh` to propagate changes to plugins and Codex. Verify with `scripts/sync_shared_resources.sh --check`.
 
+**Evaluating skill changes**: Run the skill against fixtures in `evals/fixtures/`, then grade with `evals/scripts/grade.sh` and aggregate with `evals/scripts/score.sh`. See `evals/README.md` and `evals/GRADING_SPEC.md`.
+
 **Releasing**: Follow the `docs/DUAL_RELEASES.md` checklist. Use `claude-vX.Y.Z` / `codex-vX.Y.Z` tags for platform-specific releases.
 
 ### Conventions
 
 - File naming: manifests lowercase (`plugin.json`), skill entrypoint UPPERCASE (`SKILL.md`), resources SCREAMING_SNAKE_CASE (`STAGE_PROMPTS.md`)
 - All agent prompts use absolute paths to output files
-- All agents use `subagent_type: "general-purpose"`
+- Stages 1-3 and 5 use `subagent_type: "general-purpose"`; verification uses `{plugin-name}:solidity-verifier`
 - Timeouts: Stage 1 = 5 min (300000ms), Stage 2 & 3 = 10 min (600000ms), Verification CRIT/HIGH = 8 min (480000ms), Verification MEDIUM batch = 10 min (600000ms)
 - Turn limits: Stage 1/5 = 15 `max_turns`, Stage 2/3 = 25 `max_turns`, Verification CRIT/HIGH = 20 `max_turns`, MEDIUM batch = 25 `max_turns`
 - `{design_decisions_file}` is only substituted into Stage 2 and Stage 3 prompts (Stage 1 does not use it)
@@ -140,6 +160,8 @@ Both use semver (MAJOR.MINOR.PATCH). Optional fields available in the spec: `aut
 | solidity-function-audit-team | Agent team | `TeamCreate` + `SendMessage` + shared task list with `blockedBy` dependencies |
 | solidity-function-audit | Codex | Shell-native single-agent workflow via `codex/skills/` |
 
+The `evals/` directory contains an evaluation framework with 5 fixtures (simple-reentrancy, erc4626-rounding, access-control-bypass, oracle-manipulation, state-divergence) and grading scripts for measuring detection quality.
+
 Both variants run the same 7-stage pipeline (Stage 0 → Slither → 1 → 2 → 3 → Synthesis → Verification → 4 → 5). Stages 0, 4, 5 are orchestrator-interactive and identical across variants. Slither integration and Verification are identical. Only Stages 1-3 differ (solo uses background agents, team uses agent teams).
 
 FUNCTION_TEMPLATE.md, EXAMPLE_OUTPUT.md, and REVIEW_PROMPTS.md are canonical in `shared/` and synced to plugins and Codex via `scripts/sync_shared_resources.sh`. STAGE_PROMPTS.md has solo and team variants in `shared/` (differs by Communication Guidelines sections). Both hooks directories contain `hooks.json` + `validate-output.sh` (different hook events but same validation logic).
@@ -157,8 +179,11 @@ Search: `"Claude Code agent teams"`, `"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS"`
 **Permission modes** — Team skill uses `mode: "bypassPermissions"` for all stages (read/write without prompts). Stage 2 teammates use prompt-based planning (design plan → message lead → execute) instead of `mode: "plan"` to avoid deadlocks with the plan approval protocol.
 Docs: https://code.claude.com/docs/en/sub-agents#permission-modes
 
-**Hooks** (stable) — Both plugins define `hooks/hooks.json` for output validation and checkpoint reconciliation. Solo uses `SubagentStop` (matched to `general-purpose` agent type). Team uses `TaskCompleted`. Both use `PreCompact` to reconcile checkpoint STAGE_STATUS with file evidence before compaction. Exit code 2 blocks completion and feeds validation errors back to the agent. Scripts use `${CLAUDE_PLUGIN_ROOT}` for path resolution.
+**Hooks** (stable) — Both plugins define `hooks/hooks.json` for output validation and checkpoint reconciliation. Solo uses `SubagentStop` (matched to both `general-purpose` and `solidity-verifier` agent types). Team uses `TaskCompleted`. Both use `PreCompact` to reconcile checkpoint STAGE_STATUS with file evidence before compaction. Exit code 2 blocks completion and feeds validation errors back to the agent. Scripts use `${CLAUDE_PLUGIN_ROOT}` for path resolution.
 Docs: https://code.claude.com/docs/en/hooks
+
+**Custom plugin agents** (stable) — Both plugins define `agents/solidity-verifier.md` with `disallowedTools` restriction (no WebSearch, WebFetch, NotebookEdit), `model: inherit`, and `background: true`. Referenced as `{plugin-name}:solidity-verifier` in verification sections.
+Docs: https://code.claude.com/docs/en/sub-agents
 
 ### Reference Links
 
