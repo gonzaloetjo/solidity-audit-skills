@@ -3,8 +3,9 @@ set -euo pipefail
 
 # run-eval.sh — Automated eval harness for solidity-function-audit-eval
 # Usage:
-#   run-eval.sh --fixture <name> [--trials N] [--max-budget-usd N.N]
-#   run-eval.sh --all [--trials N] [--max-budget-usd N.N]
+#   run-eval.sh --fixture <name> [--trials N] [--model MODEL] [--max-budget-usd N.N]
+#   run-eval.sh --all [--trials N] [--model MODEL] [--max-budget-usd N.N]
+#   run-eval.sh --all --naive [--model MODEL]   # Raw model baseline (no pipeline)
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
@@ -17,6 +18,8 @@ ALL=false
 TRIALS=1
 MAX_BUDGET="12.0"
 MAX_TURNS=200
+MODEL=""
+NAIVE=false
 
 # Parse args
 while [[ $# -gt 0 ]]; do
@@ -30,20 +33,30 @@ while [[ $# -gt 0 ]]; do
     --trials)
       shift; TRIALS="${1:-1}"
       ;;
+    --model)
+      shift; MODEL="${1:-}"
+      ;;
+    --naive)
+      NAIVE=true
+      ;;
     --max-budget-usd)
-      shift; MAX_BUDGET="${1:-5.0}"
+      shift; MAX_BUDGET="${1:-12.0}"
       ;;
     --max-turns)
       shift; MAX_TURNS="${1:-200}"
       ;;
     -h|--help)
-      echo "Usage: run-eval.sh --fixture <name> [--trials N] [--max-budget-usd N.N]"
-      echo "       run-eval.sh --all [--trials N] [--max-budget-usd N.N]"
+      echo "Usage: run-eval.sh --fixture <name> [--trials N] [--model MODEL] [--max-budget-usd N.N]"
+      echo "       run-eval.sh --all [--trials N] [--model MODEL] [--max-budget-usd N.N]"
+      echo "       run-eval.sh --all --naive [--model MODEL]   # Raw model, no pipeline"
       echo ""
       echo "Options:"
       echo "  --fixture NAME       Run against a single fixture"
       echo "  --all                Run against all fixtures"
       echo "  --trials N           Number of trials per fixture (default: 1)"
+      echo "  --model MODEL        Claude model to use (e.g. sonnet, opus, haiku,"
+      echo "                       claude-sonnet-4-20250514, etc.) (default: CLI default)"
+      echo "  --naive              Run raw model without audit pipeline (baseline comparison)"
       echo "  --max-budget-usd N   Budget cap per trial in USD (default: 12.0)"
       echo "  --max-turns N        Max agent turns per trial (default: 200)"
       exit 0
@@ -89,7 +102,22 @@ else
   FIXTURE_LIST=("$FIXTURE")
 fi
 
+# Build model args for claude CLI
+MODEL_LABEL="default"
+CLAUDE_MODEL_ARGS=""
+if [[ -n "$MODEL" ]]; then
+  CLAUDE_MODEL_ARGS="--model $MODEL"
+  MODEL_LABEL="$MODEL"
+fi
+
+# Naive mode uses a different results subdirectory to keep runs separate
+if [[ "$NAIVE" == true ]]; then
+  RESULTS_DIR="$RESULTS_DIR/naive-${MODEL_LABEL}"
+fi
+
 echo "=== Eval Harness ==="
+echo "Mode: $([ "$NAIVE" == true ] && echo "naive (raw model)" || echo "skill (full pipeline)")"
+echo "Model: $MODEL_LABEL"
 echo "Fixtures: ${FIXTURE_LIST[*]}"
 echo "Trials: $TRIALS"
 echo "Budget cap: \$${MAX_BUDGET}/trial"
@@ -124,21 +152,67 @@ run_trial() {
     return 1
   fi
 
-  # Invoke eval skill
-  echo "  Running eval skill..."
+  # Invoke Claude
   local start_time
   start_time=$(date +%s)
 
   local stream_file="$tmp_dir/stream-output.jsonl"
 
-  # Unset CLAUDECODE to allow nested invocation (e.g., when run from inside a Claude session)
-  env -u CLAUDECODE claude -p "/solidity-function-audit-eval $tmp_dir" \
-    --plugin-dir "$PLUGIN_DIR" \
-    --dangerously-skip-permissions \
-    --output-format stream-json \
-    --max-turns "$MAX_TURNS" \
-    --max-budget-usd "$MAX_BUDGET" \
-    > "$stream_file" 2>"$tmp_dir/claude-stderr.log" || true
+  if [[ "$NAIVE" == true ]]; then
+    # Naive mode: raw model prompt, no pipeline — asks Claude to audit and write findings
+    # in the same directory structure so grade.sh can score it
+    echo "  Running naive audit (raw model, no pipeline)..."
+    local naive_prompt
+    naive_prompt="$(cat <<'NAIVE_EOF'
+You are a Solidity security auditor. Analyze all .sol files in the src/ directory of the project at $PROJECT_PATH for security vulnerabilities.
+
+For each vulnerability you find, write a detailed finding. Then create an INDEX.md file at $OUTPUT_DIR/INDEX.md with this exact format:
+
+# Audit Index
+
+## All Findings
+
+| # | Title | Severity | File | Function | Verdict |
+|---|-------|----------|------|----------|---------|
+| 1 | [Title] | [CRITICAL/HIGH/MEDIUM/LOW/INFO] | [contract.sol] | [functionName] | [ISSUE_FOUND/NEEDS_REVIEW/SOUND] |
+
+Also create a SUMMARY.md at $OUTPUT_DIR/SUMMARY.md with a brief audit summary.
+
+Rules:
+- Only report real vulnerabilities with clear exploit paths
+- Use severity levels: CRITICAL, HIGH, MEDIUM, LOW, INFO
+- Verdict: ISSUE_FOUND for CRITICAL/HIGH, NEEDS_REVIEW for MEDIUM/LOW, SOUND for INFO
+- Be precise about which contract and function each finding affects
+- Write findings as markdown files in $OUTPUT_DIR/
+
+Create the output directory first: mkdir -p $OUTPUT_DIR
+NAIVE_EOF
+)"
+    # Substitute paths
+    naive_prompt="${naive_prompt//\$PROJECT_PATH/$tmp_dir}"
+    naive_prompt="${naive_prompt//\$OUTPUT_DIR/$tmp_dir/docs/audit/function-audit}"
+
+    # shellcheck disable=SC2086
+    env -u CLAUDECODE claude -p "$naive_prompt" \
+      --dangerously-skip-permissions \
+      --output-format stream-json \
+      --max-turns "$MAX_TURNS" \
+      --max-budget-usd "$MAX_BUDGET" \
+      $CLAUDE_MODEL_ARGS \
+      > "$stream_file" 2>"$tmp_dir/claude-stderr.log" || true
+  else
+    # Skill mode: full audit pipeline via eval plugin
+    echo "  Running eval skill..."
+    # shellcheck disable=SC2086
+    env -u CLAUDECODE claude -p "/solidity-function-audit-eval $tmp_dir" \
+      --plugin-dir "$PLUGIN_DIR" \
+      --dangerously-skip-permissions \
+      --output-format stream-json \
+      --max-turns "$MAX_TURNS" \
+      --max-budget-usd "$MAX_BUDGET" \
+      $CLAUDE_MODEL_ARGS \
+      > "$stream_file" 2>"$tmp_dir/claude-stderr.log" || true
+  fi
 
   local end_time
   end_time=$(date +%s)
@@ -173,8 +247,9 @@ run_trial() {
   fi
 
   # Write cost.json
-  printf '{\n  "duration_seconds": %d,\n  "cost_usd": %s,\n  "max_budget_usd": %s,\n  "max_turns": %d\n}\n' \
+  printf '{\n  "duration_seconds": %d,\n  "cost_usd": %s,\n  "max_budget_usd": %s,\n  "max_turns": %d,\n  "model": "%s",\n  "mode": "%s"\n}\n' \
     "$duration" "${total_cost:-null}" "$MAX_BUDGET" "$MAX_TURNS" \
+    "$MODEL_LABEL" "$([ "$NAIVE" == true ] && echo "naive" || echo "skill")" \
     > "$result_dir/cost.json"
 
   echo "  Results: $result_dir"

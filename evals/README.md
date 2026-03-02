@@ -32,19 +32,57 @@ evals/
 Use `run-eval.sh` for one-command evaluation:
 
 ```bash
-# Single fixture, 1 trial
+# Single fixture, 1 trial (uses CLI default model)
 evals/scripts/run-eval.sh --fixture simple-reentrancy
 
-# All fixtures, 3 trials each
-evals/scripts/run-eval.sh --all --trials 3
+# All fixtures, 1 trial each
+evals/scripts/run-eval.sh --all
 
-# With budget cap
-evals/scripts/run-eval.sh --all --trials 1 --max-budget-usd 5.0
+# All fixtures with a specific model
+evals/scripts/run-eval.sh --all --model sonnet
+evals/scripts/run-eval.sh --all --model opus
+
+# Multi-trial for statistical robustness
+evals/scripts/run-eval.sh --all --trials 3 --model sonnet
+
+# Naive baseline — raw model prompt, no audit pipeline
+# (answers: "does our pipeline actually help vs a plain model?")
+evals/scripts/run-eval.sh --all --naive --model sonnet
+
+# With custom budget cap
+evals/scripts/run-eval.sh --all --trials 1 --max-budget-usd 8.0
 ```
 
-`run-eval.sh` handles fixture isolation, forge-std installation, `claude -p` invocation with the eval plugin, grading, and score aggregation.
+**Options**:
+- `--fixture NAME` — run a single fixture
+- `--all` — run all fixtures
+- `--model MODEL` — Claude model (`sonnet`, `opus`, `haiku`, or full ID like `claude-sonnet-4-20250514`)
+- `--naive` — raw model baseline (no pipeline), results go to `results/naive-{model}/`
+- `--trials N` — trials per fixture (default: 1)
+- `--max-budget-usd N` — budget cap per trial (default: 12.0)
+- `--max-turns N` — agent turn limit (default: 200)
+
+`run-eval.sh` handles fixture isolation, forge-std installation, `claude -p` invocation with the eval plugin (or raw prompt in naive mode), grading, and score aggregation.
 
 **Prerequisites**: `claude` CLI in PATH, `forge` installed. The eval plugin (`plugins/solidity-function-audit-eval`) must exist.
+
+### Comparing pipeline vs raw model
+
+The `--naive` flag runs the same fixtures through a plain Claude prompt (no pipeline, no stages, no verification). This answers whether the structured audit pipeline adds value over just asking the model to find bugs.
+
+```bash
+# Run pipeline with Sonnet
+evals/scripts/run-eval.sh --all --model sonnet
+
+# Run naive baseline with same model
+evals/scripts/run-eval.sh --all --naive --model sonnet
+
+# Compare results
+evals/scripts/score.sh evals/results/                    # pipeline scores
+evals/scripts/score.sh evals/results/naive-sonnet/       # naive scores
+```
+
+Naive results are stored separately under `results/naive-{model}/` so they don't mix with pipeline results.
 
 ### Manual
 
