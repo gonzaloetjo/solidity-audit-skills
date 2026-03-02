@@ -25,6 +25,12 @@ known_safe:
     function: deposit
   - contract: Vault
     function: getBalance
+design_decisions_preset:
+  upgradeable: false
+  token_standard: null
+  access_control: none
+  oracle_usage: false
+  notes: "Simple ETH vault with deposit/withdraw"
 ---
 
 # Fixture: Simple Reentrancy

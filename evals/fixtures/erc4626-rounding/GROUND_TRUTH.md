@@ -19,6 +19,7 @@ known_vulnerabilities:
     contract: SimpleVault
     function: deposit
     location: "src/SimpleVault.sol:61"
+    verification_expected: CONFIRMED
     tags: [inflation-attack, erc4626]
 known_safe:
   - contract: SimpleVault
@@ -27,6 +28,12 @@ known_safe:
     function: previewDeposit
   - contract: MockERC20
     function: transfer
+design_decisions_preset:
+  upgradeable: false
+  token_standard: "ERC4626"
+  access_control: none
+  oracle_usage: false
+  notes: "ERC4626-style vault with manual share math"
 ---
 
 # Fixture: ERC4626 Rounding

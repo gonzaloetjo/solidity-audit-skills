@@ -19,6 +19,7 @@ known_vulnerabilities:
     contract: TokenVault
     function: emergencyRescue
     location: "src/TokenVault.sol:79"
+    verification_expected: CONFIRMED
     tags: [state-divergence, dependent-bug]
 known_safe:
   - contract: TokenVault
@@ -27,6 +28,12 @@ known_safe:
     function: getDeposit
   - contract: MockERC20
     function: transfer
+design_decisions_preset:
+  upgradeable: false
+  token_standard: null
+  access_control: "ownable"
+  oracle_usage: false
+  notes: "ERC20 token vault with internal accounting"
 ---
 
 # State-Divergence Fixture

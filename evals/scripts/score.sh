@@ -1,17 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# score.sh <results_dir> [--trials N]
+# score.sh <results_dir> [--trials N] [--baseline FILE]
 # Reads: <results_dir>/*/grade.json or <results_dir>/*/trial-N/grade.json
 # Prints: markdown evaluation report to stdout
 
 if [[ $# -lt 1 ]]; then
-  echo "Usage: score.sh <results_dir> [--trials N]" >&2
+  echo "Usage: score.sh <results_dir> [--trials N] [--baseline FILE]" >&2
   exit 2
 fi
 
 RESULTS_DIR="$1"
 TRIALS=0
+BASELINE_FILE=""
 
 shift
 while [[ $# -gt 0 ]]; do
@@ -20,9 +21,35 @@ while [[ $# -gt 0 ]]; do
       shift
       TRIALS="${1:-0}"
       ;;
+    --baseline)
+      shift
+      BASELINE_FILE="${1:-}"
+      ;;
   esac
   shift
 done
+
+# ---------------------------------------------------------------------------
+# Parse baseline.json if provided
+# ---------------------------------------------------------------------------
+declare -A BASELINE_AYI
+if [[ -n "$BASELINE_FILE" && -f "$BASELINE_FILE" ]]; then
+  current_fixture=""
+  while IFS= read -r line; do
+    # Match fixture name line: "fixture-name": {
+    if [[ "$line" =~ \"([a-z0-9-]+)\":\ *\{ ]]; then
+      current_fixture="${BASH_REMATCH[1]}"
+    fi
+    # Match ayi value line: "ayi": 0.XX or "ayi": null
+    if [[ -n "$current_fixture" && "$line" =~ \"ayi\":\ *([0-9.-]+) ]]; then
+      BASELINE_AYI["$current_fixture"]="${BASH_REMATCH[1]}"
+      current_fixture=""
+    elif [[ -n "$current_fixture" && "$line" =~ \"ayi\":\ *null ]]; then
+      BASELINE_AYI["$current_fixture"]="null"
+      current_fixture=""
+    fi
+  done < "$BASELINE_FILE"
+fi
 
 # ---------------------------------------------------------------------------
 # Helper: extract a numeric value from grade.json by key path
@@ -160,10 +187,16 @@ printf "Generated: %s\n\n" "$TIMESTAMP"
 printf "## Per-Fixture Results\n\n"
 
 if [[ $TRIALS -le 0 ]]; then
-  printf "| Fixture | DR | FPR | SA | VA | AYI |\n"
-  printf "|---------|------|------|------|------|------|\n"
+  if [[ ${#BASELINE_AYI[@]} -gt 0 ]]; then
+    printf "| Fixture | DR | FPR | SA | VA | AYI | Δ AYI | Verdict |\n"
+    printf "|---------|------|------|------|------|------|-------|--------|\n"
+  else
+    printf "| Fixture | DR | FPR | SA | VA | AYI |\n"
+    printf "|---------|------|------|------|------|------|\n"
+  fi
 
   all_dr="" ; all_fpr="" ; all_sa="" ; all_va="" ; all_ayi=""
+  baseline_pass=0 ; baseline_regress=0 ; baseline_total=0
 
   for fix in "${FIXTURES_ORDER[@]}"; do
     dr="${FIX_DR[$fix]:-0}"
@@ -172,8 +205,29 @@ if [[ $TRIALS -le 0 ]]; then
     va="${FIX_VA[$fix]:-0}"
     ayi="${FIX_AYI[$fix]:-0}"
 
-    printf "| %s | %.2f | %.2f | %.2f | %.2f | %.2f |\n" \
-      "$fix" "$dr" "$fpr" "$sa" "$va" "$ayi"
+    if [[ ${#BASELINE_AYI[@]} -gt 0 ]]; then
+      base_ayi="${BASELINE_AYI[$fix]:-}"
+      if [[ -z "$base_ayi" || "$base_ayi" == "null" ]]; then
+        delta_str="—"
+        verdict_str="—"
+      else
+        delta=$(awk -v a="$ayi" -v b="$base_ayi" 'BEGIN { printf "%.4f", a - b }')
+        delta_str=$(printf "%.2f" "$delta")
+        verdict=$(awk -v d="$delta" 'BEGIN { print (d >= -0.1) ? "PASS" : "REGRESS" }')
+        verdict_str="$verdict"
+        baseline_total=$((baseline_total + 1))
+        if [[ "$verdict" == "PASS" ]]; then
+          baseline_pass=$((baseline_pass + 1))
+        else
+          baseline_regress=$((baseline_regress + 1))
+        fi
+      fi
+      printf "| %s | %.2f | %.2f | %.2f | %.2f | %.2f | %s | %s |\n" \
+        "$fix" "$dr" "$fpr" "$sa" "$va" "$ayi" "$delta_str" "$verdict_str"
+    else
+      printf "| %s | %.2f | %.2f | %.2f | %.2f | %.2f |\n" \
+        "$fix" "$dr" "$fpr" "$sa" "$va" "$ayi"
+    fi
 
     all_dr="$all_dr $dr"
     all_fpr="$all_fpr $fpr"
@@ -181,6 +235,11 @@ if [[ $TRIALS -le 0 ]]; then
     all_va="$all_va $va"
     all_ayi="$all_ayi $ayi"
   done
+
+  if [[ ${#BASELINE_AYI[@]} -gt 0 && $baseline_total -gt 0 ]]; then
+    printf "\nBaseline comparison: %d/%d fixtures PASS, %d REGRESS\n" \
+      "$baseline_pass" "$baseline_total" "$baseline_regress"
+  fi
 
   printf "\n## Aggregate\n\n"
   printf "| Metric | Value |\n"
@@ -200,10 +259,16 @@ if [[ $TRIALS -le 0 ]]; then
 
 else
   # Multi-trial output
-  printf "| Fixture | Trials | Best@%d | Median@%d | DR (mean) |\n" "$TRIALS" "$TRIALS"
-  printf "|---------|--------|--------|----------|----------|\n"
+  if [[ ${#BASELINE_AYI[@]} -gt 0 ]]; then
+    printf "| Fixture | Trials | Best@%d | Median@%d | DR (mean) | Δ AYI | Verdict |\n" "$TRIALS" "$TRIALS"
+    printf "|---------|--------|--------|----------|----------|-------|--------|\n"
+  else
+    printf "| Fixture | Trials | Best@%d | Median@%d | DR (mean) |\n" "$TRIALS" "$TRIALS"
+    printf "|---------|--------|--------|----------|----------|\n"
+  fi
 
   all_best="" ; all_median="" ; all_mean_dr=""
+  baseline_pass=0 ; baseline_regress=0 ; baseline_total=0
 
   for fix in "${FIXTURES_ORDER[@]}"; do
     ayis="${TRIAL_AYIS[$fix]:-0}"
@@ -214,12 +279,38 @@ else
     median=$(awk_median $ayis)
     mean_dr=$(awk_mean $drs)
 
-    printf "| %s | %d | %s | %s | %s |\n" "$fix" "$count" "$best" "$median" "$mean_dr"
+    if [[ ${#BASELINE_AYI[@]} -gt 0 ]]; then
+      base_ayi="${BASELINE_AYI[$fix]:-}"
+      if [[ -z "$base_ayi" || "$base_ayi" == "null" ]]; then
+        delta_str="—"
+        verdict_str="—"
+      else
+        delta=$(awk -v a="$median" -v b="$base_ayi" 'BEGIN { printf "%.4f", a - b }')
+        delta_str=$(printf "%.2f" "$delta")
+        verdict=$(awk -v d="$delta" 'BEGIN { print (d >= -0.1) ? "PASS" : "REGRESS" }')
+        verdict_str="$verdict"
+        baseline_total=$((baseline_total + 1))
+        if [[ "$verdict" == "PASS" ]]; then
+          baseline_pass=$((baseline_pass + 1))
+        else
+          baseline_regress=$((baseline_regress + 1))
+        fi
+      fi
+      printf "| %s | %d | %s | %s | %s | %s | %s |\n" \
+        "$fix" "$count" "$best" "$median" "$mean_dr" "$delta_str" "$verdict_str"
+    else
+      printf "| %s | %d | %s | %s | %s |\n" "$fix" "$count" "$best" "$median" "$mean_dr"
+    fi
 
     all_best="$all_best $best"
     all_median="$all_median $median"
     all_mean_dr="$all_mean_dr $mean_dr"
   done
+
+  if [[ ${#BASELINE_AYI[@]} -gt 0 && $baseline_total -gt 0 ]]; then
+    printf "\nBaseline comparison: %d/%d fixtures PASS, %d REGRESS\n" \
+      "$baseline_pass" "$baseline_total" "$baseline_regress"
+  fi
 
   printf "\n## Multi-Trial Aggregate (k=%d)\n\n" "$TRIALS"
   printf "| Metric | Value |\n"

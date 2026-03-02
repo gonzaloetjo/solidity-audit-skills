@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.9.0] - 2026-03-02
+
+### Added
+- **Eval-mode skill plugin** (`solidity-function-audit-eval`): Non-interactive variant of the solo audit skill. Removes all 12 interactive pause points for automated evaluation via `claude -p` mode. Reads design decisions from GROUND_TRUTH.md `design_decisions_preset`, skips Slither, auto-confirms domains, always runs verification, stops after Verification (no Stage 4/5). Writes `EVAL_COMPLETE` to checkpoint on completion.
+- **Automated eval harness** (`evals/scripts/run-eval.sh`): Shell script that runs the eval skill against fixtures, grades output, and extracts cost metadata. Supports `--fixture <name>` or `--all`, `--trials N` for multi-trial evaluation, `--max-budget-usd` for cost caps. Handles fixture isolation (temp dir copy), forge-std installation, `claude -p` invocation, and grade.json generation per trial.
+- **Clean-contract fixture** (`evals/fixtures/clean-contract/`): Fixture with zero vulnerabilities — all functions are `known_safe`. Tests false positive rate in isolation: a perfect skill scores AYI = 0.0. Simple ETH treasury (~80 LOC) with proper CEI, owner-only access control.
+- **Baseline tracking** (`evals/baseline.json`): Committed reference scores for regression detection. Placeholder values — update after initial eval run.
+- **GitHub Actions CI** (`.github/workflows/eval-canary.yml`): Runs on pushes that modify SKILL.md or STAGE_PROMPTS.md. 2 fixtures (simple-reentrancy + clean-contract), 1 trial each. Fails if AYI regresses > 0.1 from baseline.
+- **`design_decisions_preset`** in GROUND_TRUTH.md: All 6 fixtures now include a `design_decisions_preset` YAML block that the eval skill reads to skip Stage 0 interactive Q&A.
+
+### Changed
+- **`grade.sh`**: Added `--duration-seconds N` optional flag. Adds `"duration_seconds"` field to grade.json output (null when omitted).
+- **`score.sh`**: Added `--baseline FILE` flag. Reads baseline.json, adds Δ AYI and PASS/REGRESS verdict columns to the report. Prints baseline comparison summary.
+- **`sync_shared_resources.sh`**: Added eval plugin as a sync target (uses solo STAGE_PROMPTS.md variant).
+- **GROUND_TRUTH.md** (existing fixtures): Added missing `verification_expected` fields to erc4626-rounding V002 (CONFIRMED), oracle-manipulation V002 (INCONCLUSIVE), and state-divergence V002 (CONFIRMED).
+
 ## [1.8.0] - 2026-03-02
 
 ### Added

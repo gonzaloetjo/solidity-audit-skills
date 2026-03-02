@@ -12,11 +12,14 @@ evals/
     state-divergence/
     access-control-bypass/
     oracle-manipulation/
+    clean-contract/     # Zero-vulnerability fixture for FPR testing
   scripts/
     match-finding.sh    # Jaccard similarity matcher for finding titles
     grade.sh            # Grade one audit output against a fixture
     score.sh            # Aggregate grade.json files into a summary table
+    run-eval.sh         # Automated eval harness (runs skill, grades, reports)
   results/              # Grade outputs (git-ignored, .gitkeep present)
+  baseline.json         # Reference scores for regression detection
   GRADING_SPEC.md       # Normative specification for all metrics and scoring
   README.md             # This file
   fixtures/README.md    # How to add new fixtures
@@ -24,7 +27,28 @@ evals/
 
 ## Usage Workflow
 
-### 1. Run the skill against a fixture
+### Automated (recommended)
+
+Use `run-eval.sh` for one-command evaluation:
+
+```bash
+# Single fixture, 1 trial
+evals/scripts/run-eval.sh --fixture simple-reentrancy
+
+# All fixtures, 3 trials each
+evals/scripts/run-eval.sh --all --trials 3
+
+# With budget cap
+evals/scripts/run-eval.sh --all --trials 1 --max-budget-usd 5.0
+```
+
+`run-eval.sh` handles fixture isolation, forge-std installation, `claude -p` invocation with the eval plugin, grading, and score aggregation.
+
+**Prerequisites**: `claude` CLI in PATH, `forge` installed. The eval plugin (`plugins/solidity-function-audit-eval`) must exist.
+
+### Manual
+
+#### 1. Run the skill against a fixture
 
 ```bash
 cd evals/fixtures/simple-reentrancy
@@ -35,7 +59,7 @@ claude --plugin-dir ../../plugins/solidity-function-audit
 
 Answer prompts normally. The skill writes output to `docs/audit/function-audit/` inside the fixture directory.
 
-### 2. Grade the output
+#### 2. Grade the output
 
 ```bash
 evals/scripts/grade.sh \
@@ -51,7 +75,9 @@ evals/scripts/grade.sh \
   evals/fixtures/simple-reentrancy > evals/results/simple-reentrancy/grade.json
 ```
 
-### 3. Aggregate results
+Optional: `--duration-seconds N` adds timing data to grade.json.
+
+#### 3. Aggregate results
 
 ```bash
 evals/scripts/score.sh evals/results/
@@ -59,7 +85,15 @@ evals/scripts/score.sh evals/results/
 
 Prints a markdown table with per-fixture and overall scores.
 
-### 4. Review the metrics
+#### 4. Compare against baseline
+
+```bash
+evals/scripts/score.sh evals/results/ --baseline evals/baseline.json
+```
+
+Adds Δ AYI and PASS/REGRESS verdict columns. REGRESS if AYI drops by > 0.1.
+
+#### 5. Review the metrics
 
 See `evals/GRADING_SPEC.md` for the full definition of each metric.
 
@@ -97,8 +131,14 @@ evals/scripts/score.sh evals/results/ --trials 3
 
 See `evals/fixtures/README.md`.
 
-## Deferred (v1.9.0)
+## CI Integration
 
-- Eval-mode skill variant (non-interactive, no prompts)
-- Automated harness (`run-all-fixtures.sh`) for one-command batch evaluation
-- CI integration (GitHub Actions workflow)
+The `eval-canary.yml` GitHub Actions workflow runs on pushes that modify SKILL.md or STAGE_PROMPTS.md. It runs 2 fixtures (simple-reentrancy + clean-contract) with 1 trial each and checks for AYI regression against `baseline.json`.
+
+## Deferred (v2.0.0)
+
+- More fixtures (expand to 20+ covering flash loans, governance, proxy patterns, cross-chain)
+- LLM-as-judge fallback for semantically equivalent findings
+- Docker isolation for full reproducibility
+- Parallel trial execution
+- Team variant eval plugin

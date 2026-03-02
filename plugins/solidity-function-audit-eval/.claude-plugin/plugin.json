@@ -1,0 +1,8 @@
+{
+  "name": "solidity-function-audit-eval",
+  "version": "1.9.0",
+  "description": "Non-interactive eval variant of solidity-function-audit. Removes all interactive prompts for automated evaluation via claude -p mode. Reads design decisions from GROUND_TRUTH.md, skips Slither, always runs verification, stops after Verification (no Stage 4/5).",
+  "skills": [
+    "./skills/solidity-function-audit-eval"
+  ]
+}

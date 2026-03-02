@@ -18,6 +18,7 @@ TEAM_STAGE_SRC="$ROOT_DIR/shared/solidity-function-audit/resources/team/STAGE_PR
 SOLO_DST="$ROOT_DIR/plugins/solidity-function-audit/skills/solidity-function-audit/resources"
 TEAM_DST="$ROOT_DIR/plugins/solidity-function-audit-team/skills/solidity-function-audit-team/resources"
 CODEX_DST="$ROOT_DIR/codex/skills/solidity-function-audit/resources"
+EVAL_DST="$ROOT_DIR/plugins/solidity-function-audit-eval/skills/solidity-function-audit-eval/resources"
 
 COMMON_FILES=(
   "FUNCTION_TEMPLATE.md"
@@ -55,11 +56,13 @@ for file in "${COMMON_FILES[@]}"; do
     ensure_exists "$SOLO_DST/$file"
     ensure_exists "$TEAM_DST/$file"
     ensure_exists "$CODEX_DST/$file"
+    ensure_exists "$EVAL_DST/$file"
   fi
 
   copy_or_check "$COMMON_SRC/$file" "$SOLO_DST/$file"
   copy_or_check "$COMMON_SRC/$file" "$TEAM_DST/$file"
   copy_or_check "$COMMON_SRC/$file" "$CODEX_DST/$file"
+  copy_or_check "$COMMON_SRC/$file" "$EVAL_DST/$file"
 done
 
 ensure_exists "$SOLO_STAGE_SRC"
@@ -67,10 +70,12 @@ ensure_exists "$TEAM_STAGE_SRC"
 ensure_exists "$SOLO_DST/STAGE_PROMPTS.md"
 ensure_exists "$TEAM_DST/STAGE_PROMPTS.md"
 ensure_exists "$CODEX_DST/STAGE_PROMPTS.md"
+ensure_exists "$EVAL_DST/STAGE_PROMPTS.md"
 
 copy_or_check "$SOLO_STAGE_SRC" "$SOLO_DST/STAGE_PROMPTS.md"
 copy_or_check "$TEAM_STAGE_SRC" "$TEAM_DST/STAGE_PROMPTS.md"
 copy_or_check "$SOLO_STAGE_SRC" "$CODEX_DST/STAGE_PROMPTS.md"
+copy_or_check "$SOLO_STAGE_SRC" "$EVAL_DST/STAGE_PROMPTS.md"
 
 if [[ "$MODE" == "sync" ]]; then
   echo "Synced shared resources into Claude + Codex release folders."

@@ -150,7 +150,7 @@ Both use semver (MAJOR.MINOR.PATCH). Optional fields available in the spec: `aut
 
 ## DYNAMIC — Current State and Evolution
 
-<!-- Last reviewed: 2026-02-27 -->
+<!-- Last reviewed: 2026-03-02 -->
 
 ### Current Inventory
 
@@ -158,13 +158,16 @@ Both use semver (MAJOR.MINOR.PATCH). Optional fields available in the spec: `aut
 |--------|---------|---------------|
 | solidity-function-audit | Solo (background agents) | `Task` + `run_in_background` + `TaskOutput` polling |
 | solidity-function-audit-team | Agent team | `TeamCreate` + `SendMessage` + shared task list with `blockedBy` dependencies |
+| solidity-function-audit-eval | Eval (non-interactive) | Solo variant with all 12 prompts removed, `claude -p` compatible |
 | solidity-function-audit | Codex | Shell-native single-agent workflow via `codex/skills/` |
 
-The `evals/` directory contains an evaluation framework with 5 fixtures (simple-reentrancy, erc4626-rounding, access-control-bypass, oracle-manipulation, state-divergence) and grading scripts for measuring detection quality.
+The `evals/` directory contains an evaluation framework with 6 fixtures (simple-reentrancy, erc4626-rounding, access-control-bypass, oracle-manipulation, state-divergence, clean-contract), grading scripts, an automated run harness (`run-eval.sh`), baseline tracking (`baseline.json`), and CI integration (`eval-canary.yml`).
 
-Both variants run the same 7-stage pipeline (Stage 0 → Slither → 1 → 2 → 3 → Synthesis → Verification → 4 → 5). Stages 0, 4, 5 are orchestrator-interactive and identical across variants. Slither integration and Verification are identical. Only Stages 1-3 differ (solo uses background agents, team uses agent teams).
+Solo and team variants run the same 7-stage pipeline (Stage 0 → Slither → 1 → 2 → 3 → Synthesis → Verification → 4 → 5). Stages 0, 4, 5 are orchestrator-interactive and identical across variants. Slither integration and Verification are identical. Only Stages 1-3 differ (solo uses background agents, team uses agent teams).
 
-FUNCTION_TEMPLATE.md, EXAMPLE_OUTPUT.md, and REVIEW_PROMPTS.md are canonical in `shared/` and synced to plugins and Codex via `scripts/sync_shared_resources.sh`. STAGE_PROMPTS.md has solo and team variants in `shared/` (differs by Communication Guidelines sections). Both hooks directories contain `hooks.json` + `validate-output.sh` (different hook events but same validation logic).
+The eval variant runs a stripped pipeline: Stage 0 (automated, reads GROUND_TRUTH.md preset) → 1 → 2 → 3 → Synthesis → Verification → EVAL_COMPLETE. No Slither, no Stage 4/5, no interactive prompts.
+
+FUNCTION_TEMPLATE.md, EXAMPLE_OUTPUT.md, REVIEW_PROMPTS.md, and VERIFICATION_PROMPTS.md are canonical in `shared/` and synced to all plugins (solo, team, eval) and Codex via `scripts/sync_shared_resources.sh`. STAGE_PROMPTS.md has solo and team variants in `shared/` (eval uses solo variant). All hooks directories contain `hooks.json` + `validate-output.sh` (different hook events but same validation logic).
 
 ### Claude Code Features In Use
 

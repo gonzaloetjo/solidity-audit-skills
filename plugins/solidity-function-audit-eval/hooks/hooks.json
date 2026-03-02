@@ -1,0 +1,38 @@
+{
+  "description": "Output validation and checkpoint reconciliation for solidity-function-audit agents",
+  "hooks": {
+    "SubagentStop": [
+      {
+        "matcher": "general-purpose",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/validate-output.sh\"",
+            "timeout": 30
+          }
+        ]
+      },
+      {
+        "matcher": "solidity-verifier",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/validate-output.sh\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/precompact-checkpoint.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

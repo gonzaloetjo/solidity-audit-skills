@@ -20,6 +20,7 @@ known_vulnerabilities:
     contract: PriceOracle
     function: getPrice
     location: "src/PriceOracle.sol:39"
+    verification_expected: INCONCLUSIVE
     tags: [oracle, design-observation]
 known_safe:
   - contract: LendingPool
@@ -30,6 +31,12 @@ known_safe:
     function: getCollateralValue
   - contract: PriceOracle
     function: setPrice
+design_decisions_preset:
+  upgradeable: false
+  token_standard: null
+  access_control: "custom"
+  oracle_usage: true
+  notes: "Lending pool with custom price oracle"
 ---
 
 ## Fixture: oracle-manipulation

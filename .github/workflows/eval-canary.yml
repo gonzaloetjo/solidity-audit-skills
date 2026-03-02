@@ -1,0 +1,52 @@
+name: Eval Canary
+
+on:
+  push:
+    paths:
+      - 'plugins/*/skills/*/SKILL.md'
+      - 'plugins/*/skills/*/resources/STAGE_PROMPTS.md'
+      - 'shared/**'
+      - 'evals/**'
+
+jobs:
+  eval-canary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Run canary evals
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          # Run 2 fixtures, 1 trial each (canary = fast, cheap)
+          evals/scripts/run-eval.sh --fixture simple-reentrancy --trials 1 --max-budget-usd 5.0
+          evals/scripts/run-eval.sh --fixture clean-contract --trials 1 --max-budget-usd 5.0
+
+      - name: Check for regressions
+        run: |
+          evals/scripts/score.sh evals/results/ --baseline evals/baseline.json | tee eval-report.md
+
+          # Check for REGRESS verdicts
+          if grep -q 'REGRESS' eval-report.md; then
+            echo "::error::Eval regression detected — AYI dropped > 0.1 from baseline"
+            cat eval-report.md
+            exit 1
+          fi
+
+          echo "All fixtures PASS baseline check"
+
+      - name: Upload eval report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report
+          path: |
+            eval-report.md
+            evals/results/

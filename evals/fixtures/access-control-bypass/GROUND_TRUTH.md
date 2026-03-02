@@ -36,6 +36,12 @@ known_safe:
     function: unpause
   - contract: BaseVault
     function: transferOwnership
+design_decisions_preset:
+  upgradeable: false
+  token_standard: null
+  access_control: "custom"
+  oracle_usage: false
+  notes: "Two-contract inheritance vault with custom fee logic"
 ---
 
 ## Fixture: access-control-bypass

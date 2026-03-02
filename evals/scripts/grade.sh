@@ -5,14 +5,26 @@ set -euo pipefail
 # Reads: <output_dir>/INDEX.md, <output_dir>/verification/*.md, <fixture_dir>/GROUND_TRUTH.md
 # Emits: grade.json to stdout
 
-if [[ $# -ne 2 ]]; then
-  echo "Usage: grade.sh <output_dir> <fixture_dir>" >&2
+if [[ $# -lt 2 ]]; then
+  echo "Usage: grade.sh <output_dir> <fixture_dir> [--duration-seconds N]" >&2
   exit 2
 fi
 
 OUTPUT_DIR="$1"
 FIXTURE_DIR="$2"
 SCRIPT_DIR="$(dirname "$0")"
+
+DURATION=""
+shift 2
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --duration-seconds)
+      shift
+      DURATION="${1:-}"
+      ;;
+  esac
+  shift
+done
 
 INDEX_MD="${OUTPUT_DIR}/INDEX.md"
 GROUND_TRUTH="${FIXTURE_DIR}/GROUND_TRUTH.md"
@@ -349,6 +361,7 @@ done
 printf '{
   "fixture": "%s",
   "timestamp": "%s",
+  "duration_seconds": %s,
   "counts": { "tp": %d, "fn": %d, "fp": %d },
   "severity_matches": %d,
   "verification": { "correct": %d, "total": %d },
@@ -360,6 +373,7 @@ printf '{
 ' \
   "$FIXTURE_NAME" \
   "$TIMESTAMP" \
+  "${DURATION:-null}" \
   "$TP" "$FN" "$FP" \
   "$SEV_MATCH" \
   "$V_CORRECT" "$V_TOTAL" \
