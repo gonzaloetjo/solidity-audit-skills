@@ -1,9 +1,9 @@
 {
   "version": "1.9.0",
   "date": "2026-03-02",
-  "note": "Placeholder — run evals and update with actual baseline scores",
+  "note": "Partial baseline — simple-reentrancy from first eval run, others pending",
   "fixtures": {
-    "simple-reentrancy": { "ayi": null, "dr": null, "fpr": null },
+    "simple-reentrancy": { "ayi": 1.0, "dr": 1.0, "fpr": 0.0 },
     "erc4626-rounding": { "ayi": null, "dr": null, "fpr": null },
     "access-control-bypass": { "ayi": null, "dr": null, "fpr": null },
     "oracle-manipulation": { "ayi": null, "dr": null, "fpr": null },

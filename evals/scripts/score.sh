@@ -33,7 +33,9 @@ done
 # Parse baseline.json if provided
 # ---------------------------------------------------------------------------
 declare -A BASELINE_AYI
+HAS_BASELINE=false
 if [[ -n "$BASELINE_FILE" && -f "$BASELINE_FILE" ]]; then
+  HAS_BASELINE=true
   current_fixture=""
   while IFS= read -r line; do
     # Match fixture name line: "fixture-name": {
@@ -188,7 +190,7 @@ printf "Generated: %s\n\n" "$TIMESTAMP"
 printf "## Per-Fixture Results\n\n"
 
 if [[ $TRIALS -le 0 ]]; then
-  if [[ ${#BASELINE_AYI[@]} -gt 0 ]]; then
+  if [[ "$HAS_BASELINE" == true ]]; then
     printf "| Fixture | DR | FPR | SA | VA | AYI | Δ AYI | Verdict |\n"
     printf "|---------|------|------|------|------|------|-------|--------|\n"
   else
@@ -206,7 +208,7 @@ if [[ $TRIALS -le 0 ]]; then
     va="${FIX_VA[$fix]:-0}"
     ayi="${FIX_AYI[$fix]:-0}"
 
-    if [[ ${#BASELINE_AYI[@]} -gt 0 ]]; then
+    if [[ "$HAS_BASELINE" == true ]]; then
       base_ayi="${BASELINE_AYI[$fix]:-}"
       if [[ -z "$base_ayi" || "$base_ayi" == "null" ]]; then
         delta_str="—"
@@ -237,7 +239,7 @@ if [[ $TRIALS -le 0 ]]; then
     all_ayi="$all_ayi $ayi"
   done
 
-  if [[ ${#BASELINE_AYI[@]} -gt 0 && $baseline_total -gt 0 ]]; then
+  if [[ "$HAS_BASELINE" == true && $baseline_total -gt 0 ]]; then
     printf "\nBaseline comparison: %d/%d fixtures PASS, %d REGRESS\n" \
       "$baseline_pass" "$baseline_total" "$baseline_regress"
   fi
@@ -260,7 +262,7 @@ if [[ $TRIALS -le 0 ]]; then
 
 else
   # Multi-trial output
-  if [[ ${#BASELINE_AYI[@]} -gt 0 ]]; then
+  if [[ "$HAS_BASELINE" == true ]]; then
     printf "| Fixture | Trials | Best@%d | Median@%d | DR (mean) | Δ AYI | Verdict |\n" "$TRIALS" "$TRIALS"
     printf "|---------|--------|--------|----------|----------|-------|--------|\n"
   else
@@ -280,7 +282,7 @@ else
     median=$(awk_median $ayis)
     mean_dr=$(awk_mean $drs)
 
-    if [[ ${#BASELINE_AYI[@]} -gt 0 ]]; then
+    if [[ "$HAS_BASELINE" == true ]]; then
       base_ayi="${BASELINE_AYI[$fix]:-}"
       if [[ -z "$base_ayi" || "$base_ayi" == "null" ]]; then
         delta_str="—"
@@ -308,7 +310,7 @@ else
     all_mean_dr="$all_mean_dr $mean_dr"
   done
 
-  if [[ ${#BASELINE_AYI[@]} -gt 0 && $baseline_total -gt 0 ]]; then
+  if [[ "$HAS_BASELINE" == true && $baseline_total -gt 0 ]]; then
     printf "\nBaseline comparison: %d/%d fixtures PASS, %d REGRESS\n" \
       "$baseline_pass" "$baseline_total" "$baseline_regress"
   fi
