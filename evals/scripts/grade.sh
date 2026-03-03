@@ -121,28 +121,60 @@ END {
 
 # ---------------------------------------------------------------------------
 # Parse INDEX.md "All Findings" table
-# Format: | N | SEVERITY | Title | Location | ... |
+# Auto-detects column layout from the header row (looks for Severity, Title,
+# File/Location, Function columns by name). Handles any column order.
 # ---------------------------------------------------------------------------
 
-declare -a IDX_SEV IDX_TITLE IDX_LOC
+declare -a IDX_SEV IDX_TITLE IDX_LOC IDX_FUNC
 IDX_COUNT=0
 
+# Column index mapping (0-based, relative to first data column after ID)
+COL_SEV=-1; COL_TITLE=-1; COL_LOC=-1; COL_FUNC=-1
+
 if [[ -f "$INDEX_MD" ]]; then
+  # Find and parse the header row to detect column positions
+  header_line=$(grep -E '^\|.*Severity.*\|' "$INDEX_MD" 2>/dev/null | head -1 || true)
+  if [[ -n "$header_line" ]]; then
+    hrow="${header_line#|}"
+    hrow="${hrow%|}"
+    IFS='|' read -ra hcols <<< "$hrow"
+    for ci in "${!hcols[@]}"; do
+      h="${hcols[$ci]}"
+      h="${h#"${h%%[![:space:]]*}"}"; h="${h%"${h##*[![:space:]]}"}"
+      h_lower=$(echo "$h" | tr '[:upper:]' '[:lower:]')
+      case "$h_lower" in
+        severity)                       COL_SEV=$ci ;;
+        title|description|finding)      COL_TITLE=$ci ;;
+        file|location|loc)              COL_LOC=$ci ;;
+        function|func)                  COL_FUNC=$ci ;;
+      esac
+    done
+  fi
+
+  # If we couldn't detect columns, fall back to common layouts
+  if [[ $COL_SEV -lt 0 ]]; then
+    # Default: | ID | Severity | Title | Location |
+    COL_SEV=1; COL_TITLE=2; COL_LOC=3; COL_FUNC=-1
+  fi
+
+  # Parse data rows
   while IFS= read -r line; do
-    # Parse table rows: | num | severity | title | location | ... |
-    # Strip leading/trailing pipes and split on |
     row="${line#|}"
     row="${row%|}"
-    IFS='|' read -r col1 col2 col3 col4 rest <<< "$row"
+    IFS='|' read -ra cols <<< "$row"
+
     # Trim whitespace
-    col2="${col2#"${col2%%[![:space:]]*}"}"; col2="${col2%"${col2##*[![:space:]]}"}"
-    col3="${col3#"${col3%%[![:space:]]*}"}"; col3="${col3%"${col3##*[![:space:]]}"}"
-    col4="${col4#"${col4%%[![:space:]]*}"}"; col4="${col4%"${col4##*[![:space:]]}"}"
+    for ci in "${!cols[@]}"; do
+      cols[$ci]="${cols[$ci]#"${cols[$ci]%%[![:space:]]*}"}"
+      cols[$ci]="${cols[$ci]%"${cols[$ci]##*[![:space:]]}"}"
+    done
+
     IDX_COUNT=$((IDX_COUNT + 1))
-    IDX_SEV[$IDX_COUNT]="$col2"
-    IDX_TITLE[$IDX_COUNT]="$col3"
-    IDX_LOC[$IDX_COUNT]="$col4"
-  done < <(grep -E '^\| [0-9]+ \|' "$INDEX_MD" 2>/dev/null || true)
+    IDX_SEV[$IDX_COUNT]="${cols[$COL_SEV]:-}"
+    IDX_TITLE[$IDX_COUNT]="$( [[ $COL_TITLE -ge 0 ]] && echo "${cols[$COL_TITLE]:-}" || echo "" )"
+    IDX_LOC[$IDX_COUNT]="$( [[ $COL_LOC -ge 0 ]] && echo "${cols[$COL_LOC]:-}" || echo "" )"
+    IDX_FUNC[$IDX_COUNT]="$( [[ $COL_FUNC -ge 0 ]] && echo "${cols[$COL_FUNC]:-}" || echo "" )"
+  done < <(grep -E '^\| *[A-Za-z]*[0-9]+ *\|' "$INDEX_MD" 2>/dev/null | grep -viE '^\|.*#.*\|.*Title' || true)
 fi
 
 # ---------------------------------------------------------------------------
@@ -201,9 +233,14 @@ for g in $(seq 1 $GT_COUNT); do
     [[ ${FINDING_USED[$i]} -eq 1 ]] && continue
 
     loc="${IDX_LOC[$i]:-}"
-    # Step 1: Exact location match (location contains both contract and function)
+    func="${IDX_FUNC[$i]:-}"
+    # Step 1: Exact location match
+    # Check location contains contract name AND (location or func column contains function name)
     if [[ -n "$gt_contract" && -n "$gt_function" ]]; then
-      if [[ "$loc" == *"$gt_contract"* && "$loc" == *"$gt_function"* ]]; then
+      loc_has_contract=false; loc_has_function=false
+      [[ "$loc" == *"$gt_contract"* ]] && loc_has_contract=true
+      [[ "$loc" == *"$gt_function"* || "$func" == *"$gt_function"* ]] && loc_has_function=true
+      if [[ "$loc_has_contract" == true && "$loc_has_function" == true ]]; then
         # Check severity adjacency
         if sev_adjacent "$gt_sev" "${IDX_SEV[$i]:-}"; then
           best_i=$i
@@ -257,15 +294,16 @@ for g in $(seq 1 $GT_COUNT); do
   fi
 done
 
-# FP: unmatched INDEX.md findings where location mentions a known_safe function
+# FP: unmatched INDEX.md findings where location/function mentions a known_safe function
 FP=0
 for i in $(seq 1 $IDX_COUNT); do
   [[ ${FINDING_USED[$i]} -eq 1 ]] && continue
   loc="${IDX_LOC[$i]:-}"
+  func="${IDX_FUNC[$i]:-}"
   for s in $(seq 1 $SAFE_COUNT); do
     sc="${SAFE_CONTRACT[$s]:-}"
     sf="${SAFE_FUNCTION[$s]:-}"
-    if [[ -n "$sf" && "$loc" == *"$sf"* ]]; then
+    if [[ -n "$sf" && ( "$loc" == *"$sf"* || "$func" == *"$sf"* ) ]]; then
       FP=$((FP + 1))
       break
     fi

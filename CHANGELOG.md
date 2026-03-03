@@ -11,7 +11,8 @@
 - **`design_decisions_preset`** in GROUND_TRUTH.md: All 6 fixtures now include a `design_decisions_preset` YAML block that the eval skill reads to skip Stage 0 interactive Q&A.
 
 ### Changed
-- **`grade.sh`**: Added `--duration-seconds N` optional flag. Adds `"duration_seconds"` field to grade.json output (null when omitted).
+- **`grade.sh`**: Added `--duration-seconds N` optional flag. Auto-detects INDEX.md column layout from header row (handles pipeline 7-column format and naive 6-column format). Uses function column for location matching when available.
+- **`run-eval.sh`**: Added `--verbose` flag required by `stream-json` output format. Preserves temp dirs and dumps stderr on failure for debugging.
 - **`score.sh`**: Added `--baseline FILE` flag. Reads baseline.json, adds Δ AYI and PASS/REGRESS verdict columns to the report. Prints baseline comparison summary.
 - **`sync_shared_resources.sh`**: Added eval plugin as a sync target (uses solo STAGE_PROMPTS.md variant).
 - **GROUND_TRUTH.md** (existing fixtures): Added missing `verification_expected` fields to erc4626-rounding V002 (CONFIRMED), oracle-manipulation V002 (INCONCLUSIVE), and state-divergence V002 (CONFIRMED).

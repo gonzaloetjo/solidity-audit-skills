@@ -148,7 +148,7 @@ run_trial() {
   # Verify compilation
   if ! (cd "$tmp_dir" && forge build --force 2>/dev/null); then
     echo "  Error: fixture does not compile" >&2
-    rm -rf "$tmp_dir"
+    echo "  Temp dir preserved at: $tmp_dir"
     return 1
   fi
 
@@ -195,6 +195,7 @@ NAIVE_EOF
     # shellcheck disable=SC2086
     env -u CLAUDECODE claude -p "$naive_prompt" \
       --dangerously-skip-permissions \
+      --verbose \
       --output-format stream-json \
       --max-turns "$MAX_TURNS" \
       --max-budget-usd "$MAX_BUDGET" \
@@ -207,6 +208,7 @@ NAIVE_EOF
     env -u CLAUDECODE claude -p "/solidity-function-audit-eval $tmp_dir" \
       --plugin-dir "$PLUGIN_DIR" \
       --dangerously-skip-permissions \
+      --verbose \
       --output-format stream-json \
       --max-turns "$MAX_TURNS" \
       --max-budget-usd "$MAX_BUDGET" \
@@ -224,7 +226,19 @@ NAIVE_EOF
   local output_dir="$tmp_dir/docs/audit/function-audit"
   if [[ ! -d "$output_dir" ]]; then
     echo "  Error: no audit output produced" >&2
-    rm -rf "$tmp_dir"
+    # Dump stderr for debugging
+    if [[ -f "$tmp_dir/claude-stderr.log" ]]; then
+      echo "  --- claude stderr ---"
+      head -20 "$tmp_dir/claude-stderr.log" | sed 's/^/  /'
+      echo "  ---"
+    fi
+    # Dump last few lines of stream output for clues
+    if [[ -f "$stream_file" && -s "$stream_file" ]]; then
+      echo "  --- stream tail ---"
+      tail -5 "$stream_file" | sed 's/^/  /'
+      echo "  ---"
+    fi
+    echo "  Temp dir preserved at: $tmp_dir"
     return 1
   fi
 
