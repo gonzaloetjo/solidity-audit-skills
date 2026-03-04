@@ -25,6 +25,9 @@ known_safe:
     function: deposit
   - contract: Vault
     function: getBalance
+contamination_notes:
+  pattern_risk: high
+  reasoning_required: low
 design_decisions_preset:
   upgradeable: false
   token_standard: null

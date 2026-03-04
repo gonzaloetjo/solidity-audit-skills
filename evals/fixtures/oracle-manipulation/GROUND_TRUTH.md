@@ -8,12 +8,12 @@ contracts:
 known_vulnerabilities:
   - id: V001
     severity: CRITICAL
-    title: "Single-block oracle price enables flash loan collateral inflation"
+    title: "Reporter can set arbitrary price enabling over-collateralized borrowing"
     contract: LendingPool
     function: borrow
     location: "src/LendingPool.sol:56"
     verification_expected: CONFIRMED
-    tags: [oracle, flash-loan, price-manipulation]
+    tags: [oracle, centralization-risk, trusted-party, price-manipulation]
   - id: V002
     severity: INFO
     title: "No TWAP or time-weighted price smoothing in oracle"
@@ -31,6 +31,9 @@ known_safe:
     function: getCollateralValue
   - contract: PriceOracle
     function: setPrice
+contamination_notes:
+  pattern_risk: high
+  reasoning_required: moderate
 design_decisions_preset:
   upgradeable: false
   token_standard: null
@@ -43,22 +46,21 @@ design_decisions_preset:
 
 ### Overview
 
-This fixture demonstrates single-block oracle price manipulation via flash loans — one of the most common CRITICAL vulnerabilities in DeFi lending protocols. `LendingPool.borrow()` reads a spot price from `PriceOracle` with no time-weighting or staleness protection. An attacker with flash loan access can inflate the collateral price in the same transaction, borrow far more than their collateral is worth, and exit with the difference.
+This fixture demonstrates a trusted-reporter oracle vulnerability in a DeFi lending protocol. `LendingPool.borrow()` reads a spot price from `PriceOracle` with no time-weighting, staleness protection, or price bounds. The oracle's `setPrice()` is gated to a single `reporter` address — external flash-loan attackers cannot manipulate the price. The real risk is that a compromised or malicious reporter can set an extreme price, enabling a borrower to extract far more value than their collateral warrants.
 
-### Vulnerability V001 — CRITICAL: Single-block oracle price in borrow()
+### Vulnerability V001 — CRITICAL: Reporter can set arbitrary price enabling over-collateralized borrowing
 
 **File**: `src/LendingPool.sol`, line 56
 
-`LendingPool.borrow()` calls `oracle.getPrice()` to compute maximum borrowable amount. The oracle returns `latestPrice` — a single value updateable by the reporter in any block. Attack sequence:
+`LendingPool.borrow()` calls `oracle.getPrice()` to compute maximum borrowable amount. The oracle returns `latestPrice` — a value updatable only by the designated `reporter` address. There are no price bounds, rate limits, or deviation checks on `setPrice()`. Attack sequence:
 
-1. Attacker takes flash loan of a large token amount
-2. Attacker (if also the reporter, or via oracle that reads from a DEX pool) sets oracle price very high
-3. Attacker calls `depositCollateral()` with a modest ETH amount
-4. At the inflated price, `collateralValue` is enormous → `maxBorrow` is enormous
-5. Attacker calls `borrow()` and drains the lending pool
-6. Flash loan is repaid; attacker keeps profit
+1. Reporter (compromised, malicious, or colluding) calls `setPrice()` with an extreme value (e.g., 100x real price)
+2. Attacker deposits a small amount of ETH as collateral via `depositCollateral()`
+3. At the inflated price, `collateralValue` is enormous → `maxBorrow` is enormous
+4. Attacker calls `borrow()` and drains the lending pool's token reserves
+5. Reporter restores the original price (covering tracks)
 
-Even if the reporter is a trusted off-chain service, the single-block nature means the reporter can be front-run or the oracle can be misconfigured to use an AMM spot price. The correct mitigation is TWAP (time-weighted average price) over a window of multiple blocks, or a Chainlink price feed with deviation thresholds.
+This is a centralization/trusted-party risk: the protocol's entire collateral valuation depends on a single unvalidated price source. Mitigations include TWAP (time-weighted average price), price deviation bounds, multi-reporter quorum, or Chainlink price feeds with heartbeat checks.
 
 ### Vulnerability V002 — INFO: No TWAP in oracle design
 
@@ -75,4 +77,4 @@ Even if the reporter is a trusted off-chain service, the single-block nature mea
 
 ### Design Notes
 
-This fixture primarily tests Stage 3 cross-contract analysis — the vulnerability spans `LendingPool` (caller) and `PriceOracle` (callee). A Stage 2 domain audit of LendingPool should flag the oracle dependency. Stage 3 cross-cutting should trace the external call path and assess trust assumptions. The Verification stage should produce a CONFIRMED verdict for V001 via a Foundry test demonstrating collateral inflation.
+This fixture primarily tests Stage 3 cross-contract analysis — the vulnerability spans `LendingPool` (caller) and `PriceOracle` (callee). A Stage 2 domain audit of LendingPool should flag the oracle dependency. Stage 3 cross-cutting should trace the external call path and assess trust assumptions. Note that `setPrice()` is access-controlled to the `reporter` address — the threat model is reporter compromise or collusion, not external flash-loan price manipulation. The Verification stage should produce a CONFIRMED verdict for V001 via a Foundry test that pranks the reporter address and demonstrates over-borrowing.

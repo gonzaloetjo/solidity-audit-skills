@@ -28,6 +28,9 @@ known_safe:
     function: getDeposit
   - contract: MockERC20
     function: transfer
+contamination_notes:
+  pattern_risk: low
+  reasoning_required: high
 design_decisions_preset:
   upgradeable: false
   token_standard: null

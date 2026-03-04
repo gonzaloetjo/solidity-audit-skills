@@ -165,6 +165,33 @@ evals/scripts/score.sh evals/results/ --trials 3
 
 `score.sh --trials N` reports best@k, median@k AYI across trials.
 
+## Fixture Design Principles
+
+These principles address the four recommendations from [OpenZeppelin's EVMBench audit](https://www.openzeppelin.com/news/openai-evmbench-audit), adapted for our framework.
+
+### Contamination awareness
+
+Current fixtures (v1.x) use well-known vulnerability patterns by design — they serve as a functional baseline to ensure the pipeline works end-to-end. Each fixture's `GROUND_TRUTH.md` includes `contamination_notes` metadata with `pattern_risk` (how well-known the pattern is) and `reasoning_required` (whether detection requires genuine code reasoning vs pattern matching).
+
+The `--naive` baseline comparison is the primary tool for detecting memorization. If a fixture shows high naive-vs-pipeline parity (both score equally well), that fixture likely tests memorization rather than reasoning. The `simple-reentrancy` fixture is expected to show this behavior; `state-divergence` should not.
+
+### Exploit reproducibility
+
+Each vulnerable fixture includes `test/Exploit.t.sol` — a Foundry test that validates every ground truth vulnerability is real and exploitable under the fixture's compiler version (^0.8.20). Run `forge test` in any fixture directory to verify. These tests serve as both a ground truth validation mechanism and a regression check if fixture source code is ever modified.
+
+### Severity calibration
+
+Severity definitions follow the 5-level scale documented in CLAUDE.md: CRITICAL (direct loss of funds, exploitable now), HIGH (conditional loss, requires specific conditions), MEDIUM (protocol deviation, limited financial impact), LOW (best practices, minor issues), INFO (observations, design choices). The grading algorithm uses a ±1 severity adjacency gate — a finding matched at an adjacent severity still counts as a TP but with a severity accuracy penalty.
+
+### v2.0.0 design direction
+
+Future fixtures will prioritize:
+- **Novel composition**: vulnerabilities arising from the interaction of individually safe patterns, not standalone textbook issues
+- **No inline annotations**: source code should read like real developer code with no `// BUG` or `// VULNERABILITY` comments
+- **Protocol-context-dependent exploitability**: vulnerabilities that require understanding the protocol's trust assumptions, not just code patterns
+- **Multi-hop dependency chains**: bugs that span 3+ contracts or require tracing through multiple state transitions
+- **Non-standard naming**: avoid function names that signal vulnerability type (e.g., no `unsafeTransfer`)
+
 ## Adding New Fixtures
 
 See `evals/fixtures/README.md`.

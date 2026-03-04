@@ -17,6 +17,9 @@ known_safe:
     function: pause
   - contract: Treasury
     function: unpause
+contamination_notes:
+  pattern_risk: n/a
+  reasoning_required: moderate
 design_decisions_preset:
   upgradeable: false
   token_standard: null

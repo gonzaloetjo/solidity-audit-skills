@@ -6,8 +6,6 @@ import "./MockToken.sol";
 
 /// @title LendingPool
 /// @notice Lending pool using a spot price oracle for collateral valuation.
-/// @dev VULNERABILITY: borrow() uses oracle.getPrice() directly — single-block
-///      spot price can be manipulated via flash loan to inflate collateral value.
 contract LendingPool {
     PriceOracle public oracle;
     MockToken public lendingToken;
@@ -50,14 +48,10 @@ contract LendingPool {
 
     /// @notice Borrow lending tokens against deposited collateral.
     /// @param amount Amount of lending tokens to borrow.
-    /// @dev VULNERABLE: uses oracle.getPrice() — single-block spot price.
-    ///      A flash loan can manipulate the oracle price upward in the same block,
-    ///      inflating collateral value and allowing over-borrowing beyond true value.
     function borrow(uint256 amount) external {
         if (amount == 0) revert ZeroAmount();
         if (collateral[msg.sender] == 0) revert InsufficientCollateral();
 
-        // Spot price from oracle — susceptible to single-block manipulation
         uint256 price = oracle.getPrice();
         uint256 collateralValue = (collateral[msg.sender] * price) / 1e18;
         uint256 maxBorrow = (collateralValue * LTV_NUMERATOR) / LTV_DENOMINATOR;
@@ -74,8 +68,6 @@ contract LendingPool {
 
     /// @notice Liquidate an undercollateralized borrower.
     /// @param borrower Address of the borrower to liquidate.
-    /// @dev Safe: liquidation benefits the protocol; using the same oracle
-    ///      for liquidation is acceptable design (liquidators can monitor on-chain).
     function liquidate(address borrower) external {
         uint256 price = oracle.getPrice();
         uint256 collateralValue = (collateral[borrower] * price) / 1e18;

@@ -5,7 +5,6 @@ import "./MockERC20.sol";
 
 /// @title SimpleVault
 /// @notice ERC4626-style vault with manual share math.
-/// @dev Contains rounding direction vulnerability and missing virtual shares.
 contract SimpleVault {
     MockERC20 public asset;
 
@@ -32,14 +31,8 @@ contract SimpleVault {
     }
 
     /// @notice Convert share amount to asset amount.
-    /// @dev VULNERABILITY (HIGH): Rounds UP instead of DOWN.
-    ///      On withdrawal/redemption, the vault should round DOWN (vault-favorable).
-    ///      Rounding UP means the withdrawer gets slightly more assets per share,
-    ///      extracting value from remaining depositors. Over many small withdrawals,
-    ///      this compounds to meaningful loss.
     function convertToAssets(uint256 shares) public view returns (uint256) {
         if (totalShares == 0 || totalAssets == 0) return shares;
-        // BUG: rounds UP — should be (shares * totalAssets) / totalShares (round down)
         return (shares * totalAssets + totalShares - 1) / totalShares;
     }
 
@@ -55,9 +48,6 @@ contract SimpleVault {
 
     /// @notice Deposit assets and receive shares.
     /// @param assets Amount of underlying tokens to deposit.
-    /// @dev VULNERABILITY (MEDIUM): No virtual shares/assets offset.
-    ///      First depositor can donate assets directly to inflate share price,
-    ///      causing subsequent depositors to receive 0 shares (inflation attack).
     function deposit(uint256 assets) external returns (uint256 shares) {
         if (assets == 0) revert ZeroAmount();
 

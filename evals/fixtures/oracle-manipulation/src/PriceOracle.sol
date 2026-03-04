@@ -35,7 +35,6 @@ contract PriceOracle {
     }
 
     /// @notice Returns the latest price.
-    /// @dev Returns single-block spot price — susceptible to flash loan manipulation.
     function getPrice() external view returns (uint256) {
         return latestPrice;
     }

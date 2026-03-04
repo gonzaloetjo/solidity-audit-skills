@@ -36,6 +36,9 @@ known_safe:
     function: unpause
   - contract: BaseVault
     function: transferOwnership
+contamination_notes:
+  pattern_risk: moderate
+  reasoning_required: moderate
 design_decisions_preset:
   upgradeable: false
   token_standard: null

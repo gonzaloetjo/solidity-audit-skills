@@ -5,8 +5,6 @@ import "./BaseVault.sol";
 
 /// @title CustomVault
 /// @notice Extended vault with fee recipient configuration.
-/// @dev VULNERABILITY: setFeeRate override drops the onlyOwner modifier,
-///      allowing any caller to change the fee rate.
 contract CustomVault is BaseVault {
     address public feeRecipient;
     mapping(address => uint256) public balances;
@@ -24,8 +22,7 @@ contract CustomVault is BaseVault {
         feeRecipient = _feeRecipient;
     }
 
-    /// @notice Override setFeeRate — VULNERABLE: onlyOwner modifier is NOT applied.
-    /// @dev Any address can call this function and change the fee rate.
+    /// @notice Override setFeeRate with custom validation.
     /// @param _feeRate New fee rate in basis points.
     function setFeeRate(uint256 _feeRate) external override {
         if (_feeRate > 1000) revert InvalidFeeRate();
@@ -34,7 +31,6 @@ contract CustomVault is BaseVault {
     }
 
     /// @notice Set the fee recipient address.
-    /// @dev VULNERABLE (LOW): No access control — any caller can redirect fees.
     /// @param _feeRecipient New recipient address.
     function setFeeRecipient(address _feeRecipient) external {
         require(_feeRecipient != address(0), "CustomVault: zero recipient");

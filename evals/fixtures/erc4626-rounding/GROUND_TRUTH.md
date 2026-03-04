@@ -28,6 +28,9 @@ known_safe:
     function: previewDeposit
   - contract: MockERC20
     function: transfer
+contamination_notes:
+  pattern_risk: moderate
+  reasoning_required: moderate
 design_decisions_preset:
   upgradeable: false
   token_standard: "ERC4626"
@@ -48,11 +51,11 @@ An ERC4626-style vault with manual share math containing two vulnerabilities: an
 
 `convertToAssets` uses `(shares * totalAssets + totalShares - 1) / totalShares` — this rounds UP. Per ERC4626 convention, conversion from shares to assets during withdrawal/redemption should round DOWN (vault-favorable). Rounding up gives the withdrawer slightly more assets than they're entitled to. Over many redemptions, this extracts value from remaining depositors.
 
-## Vulnerability V002 — MEDIUM: Missing virtual shares (inflation attack)
+## Vulnerability V002 — MEDIUM: Missing virtual shares (inflation attack causes deposit DoS)
 
 **Location**: `src/SimpleVault.sol:61` (`deposit`)
 
-The vault has no virtual shares/assets offset (`totalShares` and `totalAssets` start at 0). A first depositor can: deposit 1 wei → get 1 share → donate a large amount directly to the vault → inflate `totalAssets` → subsequent depositors get 0 shares (truncated to 0 by integer division). The mitigation is a virtual offset: `convertToShares` should use `(assets * (totalShares + 1)) / (totalAssets + 1)`.
+The vault has no virtual shares/assets offset (`totalShares` and `totalAssets` start at 0). A first depositor can: deposit 1 wei → get 1 share → donate a large amount directly to the vault → inflate `totalAssets` → `convertToShares` truncates subsequent deposits to 0 shares. The contract's `if (totalShares > 0 && shares == 0) revert ZeroAmount()` guard prevents silent 0-share minting, converting what would be silent value theft into a DoS — subsequent depositors cannot deposit at all while the inflated state persists. The impact is griefing/DoS on the core deposit functionality rather than direct value extraction. The mitigation is a virtual offset: `convertToShares` should use `(assets * (totalShares + 1)) / (totalAssets + 1)`.
 
 ## Known-Safe Functions
 
