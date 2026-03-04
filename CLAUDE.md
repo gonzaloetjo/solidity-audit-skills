@@ -132,7 +132,16 @@ Both use semver (MAJOR.MINOR.PATCH). Optional fields available in the spec: `aut
 
 **Editing shared resources**: Edit files in `shared/`, then run `scripts/sync_shared_resources.sh` to propagate changes to plugins and Codex. Verify with `scripts/sync_shared_resources.sh --check`.
 
-**Evaluating skill changes**: Run the skill against fixtures in `evals/fixtures/`, then grade with `evals/scripts/grade.sh` and aggregate with `evals/scripts/score.sh`. See `evals/README.md` and `evals/GRADING_SPEC.md`.
+**Evaluating skill changes**: Use `evals/scripts/run-eval.sh` for automated evaluation. Key commands:
+- `evals/scripts/run-eval.sh --all --model sonnet` — run all 6 fixtures with the full pipeline
+- `evals/scripts/run-eval.sh --all --naive --model sonnet` — run naive baseline (raw model, no pipeline)
+- `evals/scripts/run-eval.sh --fixture <name> --model sonnet` — run a single fixture
+- `evals/scripts/score.sh evals/results/` — view pipeline scores
+- `evals/scripts/score.sh evals/results/naive-sonnet/` — view naive scores
+- `evals/scripts/score.sh evals/results/ --baseline evals/baseline.json` — check for regressions
+- Models: `sonnet`, `opus`, `haiku`, or full model ID. Budget: `--max-budget-usd N` (default $12/trial).
+- **Cannot run from inside a Claude session** — the harness invokes `claude -p` which fails when nested (CLAUDECODE env var conflict). The user must run it from a separate terminal. If the user asks to run evals, tell them the command to run externally.
+- See `evals/README.md` and `evals/GRADING_SPEC.md` for full details.
 
 **Releasing**: Follow the `docs/DUAL_RELEASES.md` checklist. Use `claude-vX.Y.Z` / `codex-vX.Y.Z` tags for platform-specific releases.
 
